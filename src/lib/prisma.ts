@@ -1,4 +1,5 @@
 import pkg from '@prisma/client';
+// Cache bust: 2026-05-03 18:36
 const { PrismaClient } = pkg;
 
 const globalForPrisma = globalThis as unknown as { prisma: PrismaClient };
