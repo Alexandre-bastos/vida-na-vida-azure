@@ -1,5 +1,4 @@
-import pkg from '../../node_modules/@prisma-generated/client/index.js';
-// Cache bust: 2026-05-03 19:30
+import pkg from '@prisma/client';
 const { PrismaClient } = pkg;
 
 const globalForPrisma = globalThis as unknown as { prisma: PrismaClient };
