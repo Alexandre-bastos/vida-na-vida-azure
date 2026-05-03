@@ -2,6 +2,7 @@
 import ReportLayout from '../../../layouts/ReportLayout.astro';
 import { getSession } from 'auth-astro/server';
 import prisma from '../../../lib/prisma';
+import { uploadFile } from '../../../lib/storage';
 import { ChevronLeft, Save, Camera } from 'lucide-react';
 
 
@@ -30,12 +31,7 @@ if (Astro.request.method === 'POST') {
   
   if (image && (image as any).size > 0) {
     try {
-      const { put } = await import('@vercel/blob');
-      const buffer = await (image as any).arrayBuffer();
-      const blob = await put(`avisos/${Date.now()}-${(image as any).name}`, buffer, {
-        access: 'public',
-      });
-      imageUrl = blob.url;
+      imageUrl = await uploadFile(image, 'avisos');
     } catch (err) {
       console.error("Erro ao fazer upload da imagem do aviso:", err);
     }

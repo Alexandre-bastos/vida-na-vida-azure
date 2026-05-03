@@ -3,6 +3,7 @@ import AppLayout from '../../layouts/AppLayout.astro';
 import { ChevronLeft, Camera } from 'lucide-react';
 import { getSession } from 'auth-astro/server';
 import prisma from '../../lib/prisma';
+import { uploadFile } from '../../lib/storage';
 
 let session = await getSession(Astro.request);
 if (!session?.user) {
@@ -82,15 +83,9 @@ if (Astro.request.method === 'POST') {
   let photoUrl = null;
   if (photo && (photo as any).size > 0) {
     try {
-      const { put } = await import('@vercel/blob');
-      const buffer = await (photo as any).arrayBuffer();
-      const blob = await put(`meetings/${Date.now()}-${(photo as any).name}`, buffer, {
-        access: 'public',
-      });
-      photoUrl = blob.url;
+      photoUrl = await uploadFile(photo, 'presencas');
     } catch (err) {
       console.error("Erro ao fazer upload da foto do encontro:", err);
-      // Aqui poderíamos definir um erro, mas para não impedir o envio da presença, apenas logamos.
     }
   }
 

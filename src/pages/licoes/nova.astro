@@ -2,6 +2,7 @@
 import AppLayout from '../../layouts/AppLayout.astro';
 import { getSession } from 'auth-astro/server';
 import prisma from '../../lib/prisma';
+import { uploadFile } from '../../lib/storage';
 import { ChevronLeft, BookOpen, UploadCloud } from 'lucide-react';
 
 const session = await getSession(Astro.request);
@@ -26,13 +27,7 @@ if (Astro.request.method === 'POST') {
   
   if (file && (file as any).size > 0) {
     try {
-      const { put } = await import('@vercel/blob');
-      const buffer = await (file as any).arrayBuffer();
-      // Não usamos compressão de imagem pois pode ser PDF, DOCX etc.
-      const blob = await put(`licoes/${Date.now()}-${(file as any).name}`, buffer, {
-        access: 'public',
-      });
-      fileUrl = blob.url;
+      fileUrl = await uploadFile(file, 'licoes');
       fileName = (file as any).name;
     } catch (err) {
       console.error("Erro ao fazer upload da lição:", err);
@@ -100,7 +95,7 @@ if (Astro.request.method === 'POST') {
             </div>
             <div class="text-center">
               <span id="file-name" class="block font-bold text-brand-dark mb-1">Clique para selecionar o arquivo</span>
-              <span class="text-xs text-gray-400">Até 4.5MB permitido pelo Vercel</span>
+              <span class="text-xs text-gray-400">Até 10MB recomendado</span>
             </div>
           </div>
           <input type="file" name="file" required class="hidden" id="file-input" />

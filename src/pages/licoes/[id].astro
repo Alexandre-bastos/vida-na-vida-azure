@@ -2,6 +2,7 @@
 import AppLayout from '../../layouts/AppLayout.astro';
 import { getSession } from 'auth-astro/server';
 import prisma from '../../lib/prisma';
+import { uploadFile } from '../../lib/storage';
 import { ChevronLeft, Save, UploadCloud } from 'lucide-react';
 
 const session = await getSession(Astro.request);
@@ -31,12 +32,7 @@ if (Astro.request.method === 'POST') {
   
   if (file && (file as any).size > 0) {
     try {
-      const { put } = await import('@vercel/blob');
-      const buffer = await (file as any).arrayBuffer();
-      const blob = await put(`licoes/${Date.now()}-${(file as any).name}`, buffer, {
-        access: 'public',
-      });
-      fileUrl = blob.url;
+      fileUrl = await uploadFile(file, 'licoes');
       fileName = (file as any).name;
     } catch (err) {
       console.error("Erro ao fazer upload da lição:", err);

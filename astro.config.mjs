@@ -5,7 +5,7 @@ import react from '@astrojs/react';
 import auth from 'auth-astro';
 import node from '@astrojs/node';
 
-import vercel from '@astrojs/vercel';
+
 
 // https://astro.build/config
 export default defineConfig({
@@ -20,6 +20,8 @@ export default defineConfig({
     noExternal: ['@prisma/client', '@auth/prisma-adapter'],
   },
   integrations: [react(), auth()],
-  adapter: vercel(),
+  adapter: node({
+    mode: 'middleware'
+  }),
   output: 'server',
 });

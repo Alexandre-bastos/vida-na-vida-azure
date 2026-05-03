@@ -10,7 +10,19 @@ export const onRequest = defineMiddleware(async ({ request, locals }, next) => {
     return next();
   }
 
-  const session = await getSession(request);
+  // Reconstruir a URL correta caso esteja atrás do proxy da Azure
+  let authRequest = request;
+  const proto = request.headers.get('x-forwarded-proto');
+  const host = request.headers.get('x-forwarded-host');
+  
+  if (proto && host) {
+    const secureUrl = new URL(request.url);
+    secureUrl.protocol = 'https:';
+    secureUrl.host = host;
+    authRequest = new Request(secureUrl.toString(), { headers: request.headers });
+  }
+
+  const session = await getSession(authRequest);
 
   // Sem sessão válida → redirecionar para login
   if (!session?.user?.id) {
