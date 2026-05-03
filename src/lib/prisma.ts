@@ -1,5 +1,6 @@
-import pkg from '../generated/client/index.js';
-const { PrismaClient } = pkg;
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+const { PrismaClient } = require('../generated/client');
 
 const globalForPrisma = globalThis as unknown as { prisma: PrismaClient };
 
