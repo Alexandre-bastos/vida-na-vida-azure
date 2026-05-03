@@ -1,0 +1,97 @@
+---
+import { User, Bell, LogOut, UserPlus, Users, Megaphone, BookOpen } from 'lucide-react';
+import { getSession } from 'auth-astro/server';
+
+const session = await getSession(Astro.request);
+const userImage = session?.user?.image;
+const userName = session?.user?.name;
+const userRole = (session?.user as any)?.role || 'MEMBRO';
+const isAdmin = userRole === 'ADMIN';
+const isCoordinator = userRole === 'COORDENADOR';
+const isLider = userRole === 'LIDER' || userRole === 'LIDER_TREINAMENTO';
+const canManageMembers = isAdmin || isCoordinator || isLider;
+
+function roleLabel(role) {
+  switch (role) {
+    case 'ADMIN': return 'Administrador';
+    case 'COORDENADOR': return 'Coordenador';
+    case 'LIDER': return 'Líder';
+    case 'LIDER_TREINAMENTO': return 'Líder (treinamento)';
+    default: return 'Membro';
+  }
+}
+---
+<header class="fixed top-0 left-0 w-full h-16 bg-white border-b border-gray-100 shadow-sm z-50 flex items-center justify-between px-4">
+  <div class="flex items-center gap-3">
+    <img src="/images/logo.png" alt="Vida na Vida" class="h-10 w-auto object-contain" />
+    <span class="font-bold text-brand-dark tracking-tight hidden sm:block text-sm">Vida na Vida</span>
+  </div>
+  
+  <div class="flex items-center gap-2">
+    {canManageMembers && (
+      <a href="/membros" class="hidden sm:flex items-center gap-2 px-4 py-2 text-gray-500 hover:text-brand-primary font-bold text-[11px] uppercase tracking-wider transition-all">
+        <UserPlus size={16} />
+        Membros
+      </a>
+    )}
+    {userRole.startsWith('LIDER') && (
+      <a href="/minha-celula" class="hidden sm:flex items-center gap-2 px-4 py-2 text-gray-500 hover:text-brand-primary font-bold text-[11px] uppercase tracking-wider transition-all">
+        <Users size={16} />
+        Minha Célula
+      </a>
+    )}
+    {(isAdmin || isCoordinator) && (
+      <a href="/relatorios" class="hidden sm:flex items-center gap-2 px-4 py-2 text-gray-500 hover:text-brand-primary font-bold text-[11px] uppercase tracking-wider transition-all">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg>
+        Relatórios
+      </a>
+    )}
+    {(isAdmin || isCoordinator) && (
+      <a href="/relatorios/avisos" class="hidden sm:flex items-center gap-2 px-4 py-2 text-gray-500 hover:text-brand-primary font-bold text-[11px] uppercase tracking-wider transition-all">
+        <Megaphone size={16} />
+        Avisos
+      </a>
+    )}
+    {(isAdmin || isCoordinator) && (
+      <a href="/licoes" class="hidden sm:flex items-center gap-2 px-4 py-2 text-gray-500 hover:text-brand-primary font-bold text-[11px] uppercase tracking-wider transition-all">
+        <BookOpen size={16} />
+        Lições
+      </a>
+    )}
+    
+    <div class="flex items-center gap-3 ml-2 border-l border-gray-100 pl-2">
+      <button class="p-2 text-brand-dark hover:bg-brand-bg rounded-full transition-colors relative">
+        <Bell size={20} />
+        <span class="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border border-white"></span>
+      </button>
+      
+      <div class="flex items-center gap-2 pl-2 border-l border-gray-100">
+        {userName && (
+          <div class="hidden sm:flex items-center gap-3">
+            <span class="text-sm font-semibold text-gray-700 max-w-[150px] truncate">{userName.split(' ')[0]}</span>
+            <span class="text-[10px] px-2 py-1 rounded-full bg-gray-100 text-gray-600 uppercase tracking-wider">{roleLabel(userRole)}</span>
+          </div>
+        )}
+        <a href="/perfil" class="block hover:opacity-80 transition-opacity">
+          {userImage ? (
+            <img src={userImage} alt={session?.user?.name || ''} class="w-8 h-8 rounded-full border border-brand-accent/20 object-cover" />
+          ) : (
+            <div class="w-8 h-8 rounded-full bg-brand-light flex items-center justify-center text-brand-dark border border-brand-accent/30 shadow-inner">
+              <User size={18} />
+            </div>
+          )}
+        </a>
+        
+        <button id="logout" class="p-2 text-gray-400 hover:text-red-500 transition-colors" title="Sair">
+          <LogOut size={18} />
+        </button>
+      </div>
+    </div>
+  </div>
+</header>
+
+<script>
+  const { signOut } = await import("auth-astro/client");
+  document.getElementById('logout')?.addEventListener('click', () => signOut());
+</script>
+

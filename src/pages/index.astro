@@ -1,0 +1,312 @@
+---
+import AppLayout from '../layouts/AppLayout.astro';
+import { Calendar, Users, Megaphone, ArrowRight, UserPlus, BookOpen, Download } from 'lucide-react';
+import { getSession } from 'auth-astro/server';
+
+import prisma from '../lib/prisma';
+
+const session = await getSession(Astro.request);
+if (!session) return Astro.redirect('/login');
+
+const firstName = session?.user?.name?.split(' ')[0] || 'Líder';
+const userId = (session?.user as any)?.id;
+const userRole = ((session?.user as any)?.role || 'MEMBRO').toUpperCase();
+const isAdmin = userRole === 'ADMIN';
+const isCoordinator = userRole === 'COORDENADOR';
+const isLider = userRole.startsWith('LIDER');
+
+// Verificar se o usuário está com a senha/login padrão (Segurança)
+import bcrypt from 'bcryptjs';
+const currentUser = await prisma.user.findUnique({ 
+    where: { id: userId },
+    select: { email: true, password: true } 
+});
+
+const isDefaultAuth = currentUser?.email === 'vidanavida' || 
+                     (currentUser?.password && bcrypt.compareSync('vidanavida', currentUser.password));
+
+if (isDefaultAuth) {
+    return Astro.redirect('/perfil?forceChange=1');
+}
+
+// 1. Buscar Avisos Ativos (Carrossel)
+const activeNotices = await prisma.notice.findMany({
+	where: { active: true },
+	orderBy: { createdAt: 'desc' }
+});
+
+// 1.5 Buscar Lição Ativa
+const activeLesson = await prisma.lesson.findFirst({
+	where: { active: true },
+	orderBy: { createdAt: 'desc' }
+});
+
+// 2. Lógica de Próximos Encontros (Segunda a Sábado)
+const now = new Date();
+const todayDay = now.getDay(); // 0=Dom, 1=Seg...
+const isSunday = todayDay === 0;
+
+// Filtro de acesso para a agenda
+let cellAccessFilter = {};
+if (!(isAdmin || isCoordinator)) {
+	cellAccessFilter = {
+		OR: [
+			{ leaderId: userId },
+			{ memberships: { some: { userId, endDate: null } } }
+		]
+	};
+}
+
+// Buscar todas as células que têm dia de encontro entre Segunda (1) e Sábado (6)
+const upcomingCells = await prisma.cell.findMany({
+	where: {
+		dayOfWeek: { gte: 1, lte: 6 },
+		...cellAccessFilter
+	},
+	orderBy: [
+		{ dayOfWeek: 'asc' },
+		{ time: 'asc' }
+	]
+});
+
+const dayNames = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
+const dayShortNames = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+
+const profileUpdated = Astro.url.searchParams.get('profile_updated') === '1';
+---
+
+<AppLayout title="Início">
+	<div class="space-y-6">
+		<!-- Header de boas vindas -->
+		<section class="flex items-start justify-between">
+			<div>
+				<h1 class="text-2xl font-bold text-brand-dark">Olá, {firstName}! 👋</h1>
+				<p class="text-sm text-gray-500 mt-1">Bem-vindo(a) ao sistema de gestão de células.</p>
+			</div>
+			<div class="bg-brand-bg px-4 py-2 rounded-full">
+				<span class="text-xs font-bold text-brand-primary uppercase tracking-wider">
+					{userRole === 'ADMIN' ? 'Administrador' : userRole === 'COORDENADOR' ? 'Coordenador' : userRole === 'LIDER' ? 'Líder' : 'Membro'}
+				</span>
+			</div>
+		</section>
+
+		{profileUpdated && (
+			<div class="bg-green-50 border border-green-100 text-green-800 p-4 rounded-2xl flex items-center justify-between shadow-sm animate-in fade-in slide-in-from-top-2">
+				<div class="flex items-center gap-3">
+					<div class="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center text-green-600">✅</div>
+					<span class="text-sm font-bold">Seu perfil e senha foram atualizados com sucesso!</span>
+				</div>
+				<button onclick="this.parentElement.remove()" class="text-green-600 hover:text-green-800 px-2">&times;</button>
+			</div>
+		)}
+
+		<!-- Carrossel de Avisos -->
+		{activeNotices.length > 0 && (
+			<section class="relative group">
+				<div id="notices-carousel" class="flex overflow-x-auto snap-x snap-mandatory scrollbar-hide gap-0 rounded-2xl shadow-md border border-gray-100">
+					{activeNotices.map((notice, index) => (
+						<div class="min-w-full snap-start bg-gradient-to-r from-brand-primary to-brand-dark p-5 text-white relative overflow-hidden flex flex-col justify-between min-h-[160px]">
+							<div class="relative z-10">
+								<div class="flex items-center gap-2 text-brand-light mb-2">
+									<Megaphone size={16} />
+									<span class="text-[10px] font-bold uppercase tracking-widest opacity-80">Aviso da Liderança {activeNotices.length > 1 ? `(${index + 1}/${activeNotices.length})` : ''}</span>
+								</div>
+								<h2 class="text-lg font-bold mb-1 leading-tight">{notice.title}</h2>
+								<p class="text-sm text-blue-100 opacity-90 mb-4 line-clamp-2 leading-relaxed">{notice.content}</p>
+							</div>
+							<div class="relative z-10 flex items-center justify-between mt-auto">
+								<a href={`/avisos/${notice.id}`} class="inline-block bg-white/20 backdrop-blur-md text-white border border-white/30 text-xs font-bold py-2.5 px-5 rounded-xl shadow-sm hover:bg-white/30 transition-all active:scale-95">
+									Ver Detalhes
+								</a>
+								<span class="text-[10px] opacity-50 font-medium">Postado em {new Date(notice.createdAt).toLocaleDateString('pt-BR')}</span>
+							</div>
+							<div class="absolute -right-6 -bottom-6 w-32 h-32 bg-white opacity-5 rounded-full blur-2xl"></div>
+							<div class="absolute -left-10 -top-10 w-40 h-40 bg-brand-primary opacity-20 rounded-full blur-3xl"></div>
+						</div>
+					))}
+				</div>
+
+				{/* Indicadores (Dots) */}
+				{activeNotices.length > 1 && (
+					<div class="flex justify-center gap-1.5 mt-3">
+						{activeNotices.map((_, i) => (
+							<button 
+								class={`carousel-dot w-1.5 h-1.5 rounded-full transition-all duration-300 ${i === 0 ? 'bg-brand-primary w-4' : 'bg-gray-300'}`}
+								data-index={i}
+								aria-label={`Ir para aviso ${i + 1}`}
+							></button>
+						))}
+					</div>
+				)}
+
+				<script is:inline>
+					const carousel = document.getElementById('notices-carousel');
+					const dots = document.querySelectorAll('.carousel-dot');
+					
+					if (carousel && dots.length > 1) {
+						let currentIndex = 0;
+						let isInteracting = false;
+
+						// Atualizar dots no scroll
+						carousel.addEventListener('scroll', () => {
+							const index = Math.round(carousel.scrollLeft / carousel.offsetWidth);
+							if (index !== currentIndex) {
+								currentIndex = index;
+								dots.forEach((dot, i) => {
+									if (i === index) {
+										dot.classList.add('bg-brand-primary', 'w-4');
+										dot.classList.remove('bg-gray-300');
+									} else {
+										dot.classList.remove('bg-brand-primary', 'w-4');
+										dot.classList.add('bg-gray-300');
+									}
+								});
+							}
+						});
+
+						// Clique nos dots
+						dots.forEach(dot => {
+							dot.addEventListener('click', () => {
+								const index = parseInt(dot.dataset.index);
+								carousel.scrollTo({
+									left: index * carousel.offsetWidth,
+									behavior: 'smooth'
+								});
+								isInteracting = true;
+								setTimeout(() => isInteracting = false, 10000); // Pausa auto-play por 10s após interação
+							});
+						});
+
+						// Auto-play
+						setInterval(() => {
+							if (!isInteracting) {
+								currentIndex = (currentIndex + 1) % dots.length;
+								carousel.scrollTo({
+									left: currentIndex * carousel.offsetWidth,
+									behavior: 'smooth'
+								});
+							}
+						}, 6000);
+
+						// Detectar interação manual
+						carousel.addEventListener('touchstart', () => isInteracting = true);
+						carousel.addEventListener('mousedown', () => isInteracting = true);
+						carousel.addEventListener('touchend', () => setTimeout(() => isInteracting = false, 10000));
+						carousel.addEventListener('mouseup', () => setTimeout(() => isInteracting = false, 10000));
+					}
+				</script>
+
+				<style>
+					.scrollbar-hide::-webkit-scrollbar { display: none; }
+					.scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+				</style>
+			</section>
+		)}
+
+		<!-- Lição Atual -->
+		{activeLesson && (
+			<section class="bg-gradient-to-r from-brand-primary to-brand-accent p-1 rounded-3xl shadow-sm">
+				<div class="bg-white rounded-[1.4rem] p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+					<div class="flex items-center gap-4">
+						<div class="w-12 h-12 rounded-xl bg-brand-light/30 text-brand-primary flex items-center justify-center shrink-0">
+							<BookOpen size={24} />
+						</div>
+						<div>
+							<span class="text-[10px] font-bold text-brand-primary uppercase tracking-widest">Lição da Semana</span>
+							<h3 class="font-bold text-brand-dark mt-0.5">{activeLesson.title}</h3>
+							<p class="text-xs text-gray-500 mt-1 line-clamp-1">{activeLesson.fileName || 'Material da célula'}</p>
+						</div>
+					</div>
+					<a href={activeLesson.fileUrl} target="_blank" rel="noopener noreferrer" class="flex items-center justify-center gap-2 bg-brand-primary text-white px-6 py-3 rounded-xl font-bold text-sm shadow-lg shadow-brand-primary/20 hover:brightness-110 transition-all shrink-0 w-full sm:w-auto">
+						<Download size={16} />
+						Baixar Lição
+					</a>
+				</div>
+			</section>
+		)}
+
+		<!-- Quick Actions / Cards -->
+		<section class={`grid gap-4 ${isAdmin ? 'grid-cols-1 sm:grid-cols-3' : (isAdmin || isCoordinator || isLider) ? 'grid-cols-2' : 'grid-cols-1'}`}>
+			<a href="/celulas" class="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 hover:border-brand-light transition-all flex flex-col items-center text-center gap-3">
+				<div class="w-12 h-12 rounded-full bg-blue-50 text-brand-primary flex items-center justify-center">
+					<Users size={24} />
+				</div>
+				<div>
+					<h3 class="font-semibold text-brand-dark text-sm">{userRole === 'MEMBRO' ? 'Minha Célula' : 'Células'}</h3>
+					<p class="text-[10px] text-gray-400 mt-0.5">{userRole === 'MEMBRO' ? 'Ver meu grupo' : 'Gerenciar unidades'}</p>
+				</div>
+			</a>
+
+			{(isAdmin || isCoordinator || isLider) && (
+				<a href="/presenca" class="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 hover:border-brand-light transition-all flex flex-col items-center text-center gap-3">
+					<div class="w-12 h-12 rounded-full bg-amber-50 text-brand-accent flex items-center justify-center">
+						<Calendar size={24} />
+					</div>
+					<div>
+						<h3 class="font-semibold text-brand-dark text-sm">Encontros</h3>
+						<p class="text-[10px] text-gray-400 mt-0.5">Lançar Presença</p>
+					</div>
+				</a>
+			)}
+
+			{isAdmin && (
+				<a href="/membros" class="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 hover:border-brand-light transition-all flex flex-col items-center text-center gap-3">
+					<div class="w-12 h-12 rounded-full bg-red-50 text-red-500 flex items-center justify-center">
+						<UserPlus size={24} />
+					</div>
+					<div>
+						<h3 class="font-semibold text-brand-dark text-sm">Membros</h3>
+						<p class="text-[10px] text-gray-400 mt-0.5">Gerenciar usuários</p>
+					</div>
+				</a>
+			)}
+
+			{(isAdmin || isCoordinator) && (
+				<a href="/relatorios/avisos" class="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 hover:border-brand-light transition-all flex flex-col items-center text-center gap-3">
+					<div class="w-12 h-12 rounded-full bg-purple-50 text-purple-600 flex items-center justify-center">
+						<Megaphone size={24} />
+					</div>
+					<div>
+						<h3 class="font-semibold text-brand-dark text-sm">Avisos</h3>
+						<p class="text-[10px] text-gray-400 mt-0.5">Gestão de mural</p>
+					</div>
+				</a>
+			)}
+		</section>
+
+		<!-- Resumo / Agenda da Semana -->
+		<section class="space-y-4">
+			<div class="flex items-center justify-between mb-2">
+				<h3 class="font-bold text-brand-dark">Agenda da Semana {isSunday ? '(Próxima)' : '(Atual)'}</h3>
+				<span class="text-[10px] text-gray-400 font-bold uppercase">Segunda a Sábado</span>
+			</div>
+			
+			<div class="space-y-3">
+				{upcomingCells.length === 0 ? (
+					<div class="text-center py-8 bg-gray-50 rounded-3xl border border-dashed border-gray-200">
+						<p class="text-xs text-gray-400">Nenhuma célula com encontro configurado esta semana.</p>
+					</div>
+				) : (
+					upcomingCells.map(cell => (
+						<a href={`/celulas/${cell.id}`} class="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex items-center justify-between hover:border-brand-light transition-colors group">
+							<div class="flex items-center gap-4">
+								<div class="bg-brand-bg rounded-xl p-2 text-center min-w-[55px]">
+									<span class="block text-[9px] text-gray-500 uppercase font-bold tracking-wider">{dayShortNames[cell.dayOfWeek || 0]}</span>
+									<span class="block text-xs font-black text-brand-primary uppercase">{dayNames[cell.dayOfWeek || 0].slice(0,3)}</span>
+								</div>
+								<div>
+									<h4 class="font-bold text-sm text-brand-dark group-hover:text-brand-primary transition-colors">{cell.name}</h4>
+									<p class="text-xs text-gray-500 mt-0.5">{cell.time} • {cell.address || 'Local a definir'}</p>
+								</div>
+							</div>
+							<div class="w-8 h-8 rounded-full bg-gray-50 text-gray-300 group-hover:bg-brand-bg group-hover:text-brand-primary flex items-center justify-center transition-all">
+								<ArrowRight size={16} />
+							</div>
+						</a>
+					))
+				)}
+			</div>
+		</section>
+	</div>
+</AppLayout>
+

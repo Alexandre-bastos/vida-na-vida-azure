@@ -1,0 +1,72 @@
+---
+import { Home, Users, CalendarCheck, UserCircle, UserPlus, BarChart2, BookOpen } from 'lucide-react';
+import { getSession } from 'auth-astro/server';
+
+const session = await getSession(Astro.request);
+const userRole = ((session?.user as any)?.role || 'MEMBRO').toUpperCase();
+const isAdmin = userRole === 'ADMIN';
+const isCoordinator = userRole === 'COORDENADOR';
+const isLider = userRole.startsWith('LIDER');
+---
+<nav class="fixed bottom-0 left-0 w-full bg-white border-t border-gray-200 z-50 md:hidden" style="padding-bottom: env(safe-area-inset-bottom);">
+  <div class="flex justify-around items-center h-16">
+    <a href="/" class="flex flex-col items-center justify-center w-full h-full text-brand-primary">
+      <Home size={22} strokeWidth={2.5} />
+      <span class="text-[10px] font-semibold mt-1">Início</span>
+    </a>
+    
+    {(isAdmin || isCoordinator) && !userRole.startsWith('LIDER') && (
+      <a href="/celulas" class="flex flex-col items-center justify-center w-full h-full text-gray-400 hover:text-brand-primary transition-colors">
+        <Users size={22} />
+        <span class="text-[10px] font-medium mt-1">Células</span>
+      </a>
+    )}
+    {userRole.startsWith('LIDER') && (
+      <a href="/minha-celula" class="flex flex-col items-center justify-center w-full h-full text-gray-400 hover:text-brand-primary transition-colors">
+        <Users size={22} />
+        <span class="text-[10px] font-medium mt-1">Minha Célula</span>
+      </a>
+    )}
+
+    {(isAdmin || isCoordinator || isLider) && (
+      <a href="/membros" class="flex flex-col items-center justify-center w-full h-full text-gray-400 hover:text-brand-primary transition-colors">
+        <UserPlus size={22} />
+        <span class="text-[10px] font-medium mt-1">Membros</span>
+      </a>
+    )}
+
+    {userRole === 'MEMBRO' && (
+      <a href="/minha-celula" class="flex flex-col items-center justify-center w-full h-full text-gray-400 hover:text-brand-primary transition-colors">
+        <Users size={22} />
+        <span class="text-[10px] font-medium mt-1">Minha Célula</span>
+      </a>
+    )}
+
+    {(isAdmin || isCoordinator || isLider) && (
+      <a href="/presenca" class="flex flex-col items-center justify-center w-full h-full text-gray-400 hover:text-brand-primary transition-colors">
+        <CalendarCheck size={22} />
+        <span class="text-[10px] font-medium mt-1">Presença</span>
+      </a>
+    )}
+
+    {(isAdmin || isCoordinator) && (
+      <a href="/relatorios" class="flex flex-col items-center justify-center w-full h-full text-gray-400 hover:text-brand-primary transition-colors">
+        <BarChart2 size={22} />
+        <span class="text-[10px] font-medium mt-1">Relatórios</span>
+      </a>
+    )}
+
+    {(isAdmin || isCoordinator) && (
+      <a href="/licoes" class="flex flex-col items-center justify-center w-full h-full text-gray-400 hover:text-brand-primary transition-colors">
+        <BookOpen size={22} />
+        <span class="text-[10px] font-medium mt-1">Lições</span>
+      </a>
+    )}
+    
+    <a href="/perfil" class="flex flex-col items-center justify-center w-full h-full text-gray-400 hover:text-brand-primary transition-colors">
+      <UserCircle size={22} />
+      <span class="text-[10px] font-medium mt-1">Perfil</span>
+    </a>
+  </div>
+</nav>
+

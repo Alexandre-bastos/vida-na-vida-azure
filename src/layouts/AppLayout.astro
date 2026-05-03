@@ -1,0 +1,75 @@
+---
+import '../styles/global.css';
+import TopBar from '../components/TopBar.astro';
+import BottomNav from '../components/BottomNav.astro';
+
+interface Props {
+	title: string;
+}
+
+const { title } = Astro.props;
+---
+
+<!doctype html>
+<html lang="pt-BR">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="description" content="Gestão de Células - Comunidade Cristã Vida na Vida" />
+		<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0, viewport-fit=cover" />
+		<link rel="icon" type="image/png" href="/images/logo.png" />
+		<link rel="manifest" href="/manifest.json" />
+		<link rel="preconnect" href="https://fonts.googleapis.com">
+		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+		<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+		
+		<meta name="theme-color" content="#2563eb" />
+		<meta name="apple-mobile-web-app-capable" content="yes" />
+		<meta name="apple-mobile-web-app-status-bar-style" content="default" />
+		<meta name="apple-mobile-web-app-title" content="Vida na Vida" />
+		<link rel="apple-touch-icon" href="/images/logo.png" />
+		<title>{title} | Vida na Vida</title>
+	</head>
+	<body class="bg-brand-bg antialiased text-brand-dark min-h-screen flex flex-col">
+		<TopBar />
+		
+		<!-- Main Content Area -->
+		<!-- Allow vertical scrolling within the main column and avoid forcing min-height -->
+		<main class="flex-1 w-full max-w-3xl mx-auto px-4 md:px-8 pt-24 md:pt-28 pb-24 md:pb-12 max-h-screen overflow-y-auto">
+			<slot />
+		</main>
+
+		<BottomNav />
+
+		<script is:inline>
+			// Proteção global contra cliques duplos e feedback de loading
+			document.addEventListener('submit', (e) => {
+				const form = e.target;
+				
+				// Evitar loop infinito se houver lógica customizada
+				if (form.dataset.submitting === 'true') {
+					e.preventDefault();
+					return;
+				}
+
+				const submitBtn = form.querySelector('button[type="submit"]');
+				if (submitBtn) {
+					form.dataset.submitting = 'true';
+					submitBtn.disabled = true;
+					submitBtn.style.opacity = '0.7';
+					submitBtn.style.cursor = 'not-allowed';
+					
+					// Adicionar spinner e mudar texto
+					const originalText = submitBtn.innerText || 'Salvar';
+					submitBtn.innerHTML = `
+						<svg class="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+							<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+							<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+						</svg>
+						<span>Processando...</span>
+					`;
+				}
+			});
+		</script>
+	</body>
+</html>
+

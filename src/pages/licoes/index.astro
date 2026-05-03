@@ -1,0 +1,130 @@
+---
+import AppLayout from '../../layouts/AppLayout.astro';
+import { getSession } from 'auth-astro/server';
+import prisma from '../../lib/prisma';
+import { BookOpen, Plus, FileText, CheckCircle, Clock } from 'lucide-react';
+
+const session = await getSession(Astro.request);
+if (!session) return Astro.redirect('/login');
+
+const userRole = (session.user as any)?.role;
+if (userRole !== 'ADMIN' && userRole !== 'COORDENADOR') {
+  return Astro.redirect('/');
+}
+
+// Lidar com ativação/desativação via formulário
+if (Astro.request.method === 'POST') {
+  const formData = await Astro.request.formData();
+  const lessonId = formData.get('lessonId')?.toString();
+  const action = formData.get('action')?.toString();
+
+  if (lessonId && action === 'activate') {
+    // Primeiro, desativar todas as lições
+    await prisma.lesson.updateMany({
+      data: { active: false }
+    });
+    // Depois, ativar apenas a escolhida
+    await prisma.lesson.update({
+      where: { id: lessonId },
+      data: { active: true }
+    });
+  } else if (lessonId && action === 'deactivate') {
+    await prisma.lesson.update({
+      where: { id: lessonId },
+      data: { active: false }
+    });
+  }
+}
+
+// Buscar todas as lições
+const lessons = await prisma.lesson.findMany({
+  orderBy: { createdAt: 'desc' }
+});
+
+const activeLessonCount = lessons.filter(l => l.active).length;
+---
+
+<AppLayout title="Lições e Materiais">
+  <div class="space-y-6 max-w-4xl mx-auto">
+    <header class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div class="flex items-center gap-4">
+        <div class="w-12 h-12 rounded-2xl bg-brand-light/30 text-brand-primary flex items-center justify-center">
+          <BookOpen size={24} />
+        </div>
+        <div>
+          <h1 class="text-2xl font-bold text-brand-dark">Lições e Materiais</h1>
+          <p class="text-sm text-gray-500">Gerencie os materiais de apoio para as células.</p>
+        </div>
+      </div>
+      <a href="/licoes/nova" class="flex items-center justify-center gap-2 bg-brand-primary text-white px-5 py-3 rounded-2xl font-bold shadow-lg shadow-brand-primary/20 hover:brightness-110 transition-all text-sm shrink-0">
+        <Plus size={18} />
+        Nova Lição
+      </a>
+    </header>
+
+    {activeLessonCount === 0 && (
+      <div class="bg-amber-50 border border-amber-200 text-amber-800 p-4 rounded-2xl flex items-center gap-3">
+        <Clock size={20} class="text-amber-500" />
+        <span class="text-sm">Nenhuma lição está ativa no momento. Os membros não verão o botão de download na tela inicial.</span>
+      </div>
+    )}
+    {activeLessonCount > 1 && (
+      <div class="bg-red-50 border border-red-200 text-red-800 p-4 rounded-2xl flex items-center gap-3">
+        <span class="text-sm"><strong>Aviso:</strong> Há mais de uma lição ativa. Isso não deveria acontecer. Por favor, desative as antigas.</span>
+      </div>
+    )}
+
+    <div class="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
+      {lessons.length === 0 ? (
+        <div class="p-8 text-center flex flex-col items-center">
+          <div class="w-16 h-16 rounded-full bg-gray-50 flex items-center justify-center mb-4 text-gray-300">
+            <FileText size={32} />
+          </div>
+          <h3 class="font-bold text-gray-800 text-lg">Nenhuma lição cadastrada</h3>
+          <p class="text-sm text-gray-500 mt-1 max-w-xs mx-auto">Você ainda não enviou nenhum material de célula.</p>
+        </div>
+      ) : (
+        <div class="divide-y divide-gray-100">
+          {lessons.map(lesson => (
+            <div class={`p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-colors ${lesson.active ? 'bg-green-50/30' : 'hover:bg-gray-50'}`}>
+              <div class="flex items-start gap-4">
+                <div class={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${lesson.active ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-500'}`}>
+                  {lesson.active ? <CheckCircle size={20} /> : <FileText size={20} />}
+                </div>
+                <div>
+                  <h3 class="font-bold text-gray-800 flex items-center gap-2">
+                    {lesson.title}
+                    {lesson.active && <span class="bg-green-100 text-green-700 text-[9px] uppercase tracking-wider font-bold px-2 py-0.5 rounded-md">Ativa</span>}
+                  </h3>
+                  <div class="text-xs text-gray-500 mt-1 flex items-center gap-2">
+                    <span class="truncate max-w-[200px] sm:max-w-xs" title={lesson.fileName || 'Arquivo'}>{lesson.fileName || 'Arquivo'}</span>
+                    <span>•</span>
+                    <span>{new Date(lesson.createdAt).toLocaleDateString('pt-BR')}</span>
+                  </div>
+                </div>
+              </div>
+              
+              <div class="flex items-center gap-3 sm:ml-auto shrink-0 w-full sm:w-auto">
+                <form method="POST" class="flex-1 sm:flex-none">
+                  <input type="hidden" name="lessonId" value={lesson.id} />
+                  {lesson.active ? (
+                    <input type="hidden" name="action" value="deactivate" />
+                  ) : (
+                    <input type="hidden" name="action" value="activate" />
+                  )}
+                  <button type="submit" class={`w-full px-4 py-2 text-xs font-bold rounded-xl transition-colors border ${lesson.active ? 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50' : 'bg-brand-light/30 border-transparent text-brand-primary hover:bg-brand-light/50'}`}>
+                    {lesson.active ? 'Desativar Download' : 'Tornar Disponível'}
+                  </button>
+                </form>
+                
+                <a href={`/licoes/${lesson.id}`} class="px-4 py-2 text-xs font-bold text-gray-500 bg-gray-50 hover:bg-gray-100 rounded-xl transition-colors border border-gray-100">
+                  Editar
+                </a>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  </div>
+</AppLayout>

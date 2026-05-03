@@ -1,0 +1,459 @@
+---
+import AppLayout from '../../layouts/AppLayout.astro';
+import { ChevronLeft, Edit2, Users, MapPin, Calendar as CalendarIcon, Clock, Plus, Trash2, UserPlus, Shield } from 'lucide-react';
+import { getSession } from 'auth-astro/server';
+import prisma from '../../lib/prisma';
+
+const session = await getSession(Astro.request);
+if (!session) return Astro.redirect('/login');
+
+const { id } = Astro.params;
+
+// Buscar dados da célula e membros atuais
+// Construir filtro de acesso similar ao da lista de células
+const userId = (session.user as any)?.id;
+const userRole = (session.user as any)?.role || 'MEMBRO';
+const isAdmin = userRole === 'ADMIN';
+const isCoordinator = userRole === 'COORDENADOR';
+const isLeader = userRole === 'LIDER' || userRole === 'LIDER_TREINAMENTO';
+
+let accessWhere = {} as any;
+if (isAdmin || isCoordinator) {
+	accessWhere = { id };
+} else if (isLeader) {
+	accessWhere = {
+		id,
+		OR: [
+			{ leaderId: userId },
+			{ memberships: { some: { userId, endDate: null } } }
+		]
+	};
+} else {
+	// membro comum
+	accessWhere = {
+		id,
+		memberships: { some: { userId, endDate: null } }
+	};
+}
+
+const cell = await prisma.cell.findFirst({
+	where: accessWhere,
+	include: {
+		leader: true,
+		memberships: {
+			where: { endDate: null },
+			include: { user: true }
+		}
+	}
+});
+
+if (!cell) return Astro.redirect('/celulas');
+
+// Reutiliza variáveis já declaradas acima (userRole, isAdmin, isCoordinator, userId)
+const isCellLeader = !!cell.leader && userId === cell.leader.id;
+const isTrainingLeader = userRole === 'LIDER_TREINAMENTO';
+const isMember = cell.memberships.some(m => m.user.id === userId);
+// Permissão para gerenciar (admin, líder, líder treinamento)
+const canManageCell = isAdmin || isCellLeader || isTrainingLeader;
+// Permissão para visualizar a célula
+const canViewCell = isAdmin || isCoordinator || isCellLeader || isTrainingLeader || isMember;
+
+if (!canViewCell) {
+	// Redireciona para a lista de células se o usuário não tem acesso
+	return Astro.redirect('/celulas');
+}
+
+// Buscar todos os usuários que NÃO estão em nenhuma célula ativa para adicionar como membros
+// Administradores não devem aparecer na lista
+const availableUsers = await prisma.user.findMany({
+  where: {
+    role: { not: 'ADMIN' },
+    cellHistory: {
+      none: { endDate: null }
+    }
+  },
+  orderBy: { name: 'asc' }
+});
+
+let message = '';
+
+// Lógica de manipulação de membros (Adicionar/Remover)
+if (Astro.request.method === 'POST') {
+    const formData = await Astro.request.formData();
+    const action = formData.get('action');
+
+    if (action === 'add_member') {
+        const userId = formData.get('userId')?.toString();
+        if (userId) {
+            await prisma.cellmembership.create({
+                data: {
+                    userId,
+                    cellId: id!,
+                    startDate: new Date(),
+                }
+            });
+            return Astro.redirect(`/celulas/${id}`);
+        }
+    }
+
+	if (action === 'remove_member') {
+        const membershipId = formData.get('membershipId')?.toString();
+        if (membershipId) {
+            // Validar permissão de exclusão (Hierarquia)
+            const membershipToRemove = await prisma.cellmembership.findUnique({
+                where: { id: membershipId },
+                include: { user: true }
+            });
+
+            if (membershipToRemove) {
+                const targetRole = membershipToRemove.user.role;
+                let canRemove = false;
+
+                if (isAdmin || isCoordinator) {
+                    canRemove = true;
+                } else if (userRole === 'LIDER') {
+                    // Lider só pode excluir MEMBRO e LIDER_TREINAMENTO
+                    canRemove = targetRole === 'MEMBRO' || targetRole === 'LIDER_TREINAMENTO';
+                } else if (userRole === 'LIDER_TREINAMENTO') {
+                    // Lider em treinamento só pode excluir MEMBRO
+                    canRemove = targetRole === 'MEMBRO';
+                }
+
+                if (canRemove) {
+                    await prisma.cellmembership.update({
+                        where: { id: membershipId },
+                        data: { endDate: new Date() }
+                    });
+                }
+            }
+            return Astro.redirect(`/celulas/${id}`);
+        }
+    }
+
+	if (action === 'set_leader') {
+		// Only ADMIN or COORDENADOR may set the leader
+		if (!(isAdmin || isCoordinator)) {
+			return Astro.redirect(`/celulas/${id}`);
+		}
+
+		const leaderId = formData.get('leaderId')?.toString();
+		if (leaderId) {
+			await prisma.cell.update({ where: { id }, data: { leaderId } });
+			return Astro.redirect(`/celulas/${id}`);
+		}
+	}
+
+    if (action === 'update_cell') {
+        const name = formData.get('name')?.toString();
+        const address = formData.get('address')?.toString();
+        const neighborhood = formData.get('neighborhood')?.toString();
+        const dayOfWeek = formData.get('dayOfWeek')?.toString();
+        const time = formData.get('time')?.toString();
+
+        if (name) {
+            await prisma.cell.update({
+                where: { id },
+                data: {
+                    name,
+                    address,
+                    neighborhood: neighborhood || null,
+                    dayOfWeek: dayOfWeek ? parseInt(dayOfWeek) : null,
+                    time
+                }
+            });
+            return Astro.redirect(`/celulas/${id}`);
+        }
+    }
+}
+---
+
+<AppLayout title={cell.name}>
+	<div class="space-y-6 pb-20 mt-4">
+		<header class="flex items-center justify-between">
+			<div class="flex items-center gap-4">
+				<a href="/" class="w-10 h-10 rounded-xl bg-white shadow-sm border border-gray-100 flex items-center justify-center text-gray-500 hover:text-brand-primary transition-colors">
+					<ChevronLeft size={20} />
+				</a>
+				<div>
+					<h1 class="text-xl font-bold text-brand-dark">{cell.name}</h1>
+					<p class="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Detalhes da Unidade</p>
+				</div>
+			</div>
+			{(isAdmin || isCoordinator) && (
+				<button id="edit-cell-btn" class="w-10 h-10 rounded-xl bg-white shadow-sm border border-gray-100 flex items-center justify-center text-gray-400 hover:text-brand-primary transition-colors">
+					<Edit2 size={18} />
+				</button>
+			)}
+		</header>
+
+		<div class="grid gap-3">
+			{cell.memberships.length === 0 ? (
+				<div class="bg-gray-50 rounded-3xl p-8 text-center border border-dashed border-gray-200">
+					<p class="text-xs text-gray-400">Nenhum membro vinculado a esta célula.</p>
+				</div>
+			) : (
+				cell.memberships.map((membership) => (
+					<div class="bg-white p-4 rounded-2xl shadow-sm border border-gray-50 flex items-center justify-between group">
+						<div class="flex items-center gap-3">
+							<div class="w-10 h-10 rounded-full bg-brand-bg flex items-center justify-center text-brand-primary overflow-hidden border border-gray-100">
+								{membership.user.image ? (
+									<img src={membership.user.image} alt={membership.user.name || ''} class="w-full h-full object-cover" />
+								) : (
+									<span class="font-bold text-sm">{membership.user.name?.charAt(0)}</span>
+								)}
+							</div>
+							<div class="flex flex-col">
+								<span class="font-medium text-sm text-brand-dark">{membership.user.name}</span>
+								<span class="text-xs text-gray-400">{membership.user.role}</span>
+							</div>
+						</div>
+						{canManageCell && (
+							<form method="POST" class="flex items-center gap-2">
+								<input type="hidden" name="action" value="remove_member" />
+								<input type="hidden" name="membershipId" value={membership.id} />
+								<button type="submit" class="text-red-500 hover:underline text-xs">Remover</button>
+							</form>
+						)}
+					</div>
+				))
+			)}
+		</div>
+
+		{/* Formulário para adicionar membro - visível apenas para quem pode gerenciar */}
+		{canManageCell && (
+			<form method="POST" class="mt-4 flex flex-col sm:flex-row gap-3">
+				<input type="hidden" name="action" value="add_member" />
+				<select name="userId" class="w-full sm:flex-1 px-4 py-3 rounded-2xl border border-gray-100 bg-gray-50 text-sm appearance-none truncate">
+					<option value="">Selecione um usuário...</option>
+					{availableUsers.map(u => (
+						<option value={u.id}>{u.name} ({u.role})</option>
+					))}
+				</select>
+				<button type="submit" class="w-full sm:w-auto px-6 py-3 rounded-2xl bg-brand-primary text-white text-sm font-bold">Adicionar</button>
+			</form>
+		)}
+				</div>
+			</div>
+
+			<div class="flex items-start gap-3 mt-4 pt-4 border-t border-gray-50">
+				<div class="w-8 h-8 rounded-full bg-gray-50 flex items-center justify-center text-gray-400 shrink-0">
+					<MapPin size={16} />
+				</div>
+				<div>
+					<p class="text-[9px] text-gray-400 font-bold uppercase">Endereço</p>
+					<p class="text-xs font-semibold text-brand-dark">{cell.address || 'Sem endereço cadastrado'}</p>
+					{cell.neighborhood && <p class="text-[10px] text-gray-500 mt-1">Bairro: {cell.neighborhood}</p>}
+				</div>
+			</div>
+		</section>
+
+		<!-- Definir Líder da Célula -->
+		{(isAdmin || isCoordinator) && (
+		<section class="bg-white p-6 rounded-[2.5rem] shadow-sm border border-gray-100">
+			<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+				<div>
+					<h3 class="font-bold text-sm">Definir Líder</h3>
+					<p class="text-xs text-gray-400">Escolha o líder responsável por esta célula.</p>
+				</div>
+				<form method="POST" class="flex flex-col sm:flex-row w-full sm:w-auto gap-3">
+					<input type="hidden" name="action" value="set_leader" />
+					<select name="leaderId" class="w-full sm:flex-1 px-4 py-3 rounded-2xl border border-gray-100 bg-gray-50 text-sm appearance-none truncate">
+						<option value="">Selecione um líder...</option>
+						{[...cell.memberships.map(m => m.user), ...availableUsers]
+                            .filter(u => u.role === 'LIDER')
+                            .map(u => (
+							<option value={u.id} selected={cell.leader?.id === u.id}>{u.name} (Líder)</option>
+						))}
+					</select>
+					<button type="submit" class="w-full sm:w-auto px-6 py-3 rounded-2xl bg-brand-primary text-white text-sm font-bold shrink-0">Definir</button>
+				</form>
+			</div>
+		</section>
+			)}
+
+		<!-- Lista de Membros -->
+		<section class="space-y-4">
+			<div class="flex items-center justify-between px-2">
+				<h3 class="font-bold text-brand-dark flex items-center gap-2">
+					Membros Ativos 
+					<span class="bg-gray-100 text-gray-400 text-[10px] py-0.5 px-2 rounded-full">{cell.memberships.length}</span>
+				</h3>
+				{canManageCell && (
+					<button id="open-add-member" class="text-brand-primary text-xs font-bold flex items-center gap-1 hover:underline">
+						<Plus size={14} /> Adicionar
+					</button>
+				)}
+			</div>
+
+			<div class="grid gap-3">
+				{cell.memberships.length === 0 ? (
+					<div class="bg-gray-50 rounded-3xl p-8 text-center border border-dashed border-gray-200">
+						<p class="text-xs text-gray-400">Nenhum membro vinculado a esta célula.</p>
+					</div>
+				) : (
+					cell.memberships.map((membership) => (
+						<div class="bg-white p-4 rounded-2xl shadow-sm border border-gray-50 flex items-center justify-between group">
+							<div class="flex items-center gap-3">
+								<div class="w-10 h-10 rounded-full bg-brand-bg flex items-center justify-center text-brand-primary overflow-hidden border border-gray-100">
+									{membership.user.image ? (
+										<img src={membership.user.image} alt={membership.user.name || ''} class="w-full h-full object-cover" />
+									) : (
+										<span class="font-bold text-sm">{membership.user.name?.charAt(0)}</span>
+									)}
+								</div>
+								<div>
+									<h4 class="text-sm font-bold text-brand-dark leading-none">{membership.user.name}</h4>
+									<div class="flex items-center gap-1 mt-1">
+										<Shield size={10} class="text-gray-300" />
+										<p class="text-[10px] text-gray-400 font-medium uppercase tracking-tighter">{membership.user.role}</p>
+									</div>
+								</div>
+							</div>
+							
+							{canManageCell && (
+								<form method="POST" class="sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+									<input type="hidden" name="action" value="remove_member" />
+									<input type="hidden" name="membershipId" value={membership.id} />
+									<button type="submit" class="text-red-400 text-xs font-bold hover:text-red-600 transition-colors">Remover</button>
+								</form>
+							)}
+						</div>
+					))
+				)}
+			</div>
+		</section>
+
+		<!-- Modal de Adicionar Membro (Simplificado para o MVP) -->
+		<dialog id="modal-add-member" class="rounded-[2.5rem] shadow-2xl p-0 border-none backdrop:bg-brand-dark/40 overflow-hidden w-full max-w-sm">
+			<div class="p-8 space-y-6">
+				<div class="text-center">
+					<div class="w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center text-brand-primary mx-auto mb-4">
+						<UserPlus size={32} />
+					</div>
+					<h3 class="text-lg font-bold text-brand-dark">Adicionar Membro</h3>
+					<p class="text-xs text-gray-400 mt-1">Escolha um usuário da igreja para vincular a esta célula.</p>
+				</div>
+
+				<form method="POST" class="space-y-4">
+					<input type="hidden" name="action" value="add_member" />
+					<div class="space-y-1.5">
+						<label for="userId" class="text-[11px] font-bold text-gray-400 uppercase tracking-wider ml-1">Usuário Disponível</label>
+						<select 
+							id="userId" 
+							name="userId" 
+							required
+							class="w-full px-5 py-4 rounded-2xl border border-gray-100 bg-gray-50/50 focus:bg-white focus:outline-none text-sm appearance-none"
+						>
+							<option value="">Selecione um usuário...</option>
+							{availableUsers.map(user => (
+								<option value={user.id}>{user.name} ({user.email})</option>
+							))}
+						</select>
+					</div>
+
+					<div class="flex gap-3 pt-4">
+						<button type="button" id="close-modal" class="flex-1 px-4 py-4 rounded-2xl border border-gray-100 font-bold text-gray-400 text-sm hover:bg-gray-50 transition-all">Cancelar</button>
+						<button type="submit" class="flex-1 px-4 py-4 rounded-2xl bg-brand-primary text-white font-bold text-sm hover:brightness-110 shadow-lg shadow-brand-primary/20 transition-all">Adicionar</button>
+					</div>
+				</form>
+			</div>
+		</dialog>
+
+		<!-- Modal de Editar Célula -->
+		<dialog id="modal-edit-cell" class="rounded-[2.5rem] shadow-2xl p-0 border-none backdrop:bg-brand-dark/40 overflow-hidden w-full max-w-sm">
+			<div class="p-8 space-y-6">
+				<div class="text-center">
+					<div class="w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center text-brand-primary mx-auto mb-4">
+						<Edit2 size={32} />
+					</div>
+					<h3 class="text-lg font-bold text-brand-dark">Editar Célula</h3>
+					<p class="text-xs text-gray-400 mt-1">Atualize as informações básicas desta unidade.</p>
+				</div>
+
+				<form method="POST" class="space-y-4">
+					<input type="hidden" name="action" value="update_cell" />
+					
+					<div class="space-y-1.5">
+						<label for="edit-name" class="text-[11px] font-bold text-gray-400 uppercase tracking-wider ml-1">Nome da Célula</label>
+						<input 
+							type="text" 
+							id="edit-name" 
+							name="name" 
+							required 
+							value={cell.name}
+							class="w-full px-5 py-4 rounded-2xl border border-gray-100 bg-gray-50/50 focus:bg-white focus:outline-none text-sm" 
+						/>
+					</div>
+
+					<div class="space-y-1.5">
+						<label for="edit-address" class="text-[11px] font-bold text-gray-400 uppercase tracking-wider ml-1">Endereço</label>
+						<input 
+							type="text" 
+							id="edit-address" 
+							name="address" 
+							value={cell.address || ''}
+							class="w-full px-5 py-4 rounded-2xl border border-gray-100 bg-gray-50/50 focus:bg-white focus:outline-none text-sm" 
+						/>
+					</div>
+
+					<div class="space-y-1.5">
+						<label for="edit-neighborhood" class="text-[11px] font-bold text-gray-400 uppercase tracking-wider ml-1">Bairro</label>
+						<input 
+							type="text" 
+							id="edit-neighborhood" 
+							name="neighborhood" 
+							value={cell.neighborhood || ''}
+							class="w-full px-5 py-4 rounded-2xl border border-gray-100 bg-gray-50/50 focus:bg-white focus:outline-none text-sm" 
+						/>
+					</div>
+
+					<div class="grid grid-cols-2 gap-4">
+						<div class="space-y-1.5">
+							<label for="edit-day" class="text-[11px] font-bold text-gray-400 uppercase tracking-wider ml-1">Dia</label>
+							<select id="edit-day" name="dayOfWeek" class="w-full px-4 py-4 rounded-2xl border border-gray-100 bg-gray-50/50 text-sm appearance-none">
+								<option value="">Selecione</option>
+								<option value="0" selected={cell.dayOfWeek === 0}>Domingo</option>
+								<option value="1" selected={cell.dayOfWeek === 1}>Segunda</option>
+								<option value="2" selected={cell.dayOfWeek === 2}>Terça</option>
+								<option value="3" selected={cell.dayOfWeek === 3}>Quarta</option>
+								<option value="4" selected={cell.dayOfWeek === 4}>Quinta</option>
+								<option value="5" selected={cell.dayOfWeek === 5}>Sexta</option>
+								<option value="6" selected={cell.dayOfWeek === 6}>Sábado</option>
+							</select>
+						</div>
+						<div class="space-y-1.5">
+							<label for="edit-time" class="text-[11px] font-bold text-gray-400 uppercase tracking-wider ml-1">Hora</label>
+							<input type="time" id="edit-time" name="time" value={cell.time || ''} class="w-full px-4 py-4 rounded-2xl border border-gray-100 bg-gray-50/50 text-sm" />
+						</div>
+					</div>
+
+					<div class="flex gap-3 pt-4">
+						<button type="button" onclick="this.closest('dialog').close()" class="flex-1 px-4 py-4 rounded-2xl border border-gray-100 font-bold text-gray-400 text-sm hover:bg-gray-50 transition-all">Cancelar</button>
+						<button type="submit" class="flex-1 px-4 py-4 rounded-2xl bg-brand-primary text-white font-bold text-sm hover:brightness-110 shadow-lg shadow-brand-primary/20 transition-all">Salvar</button>
+					</div>
+				</form>
+			</div>
+		</dialog>
+	</div>
+</AppLayout>
+
+<script>
+	const openBtn = document.getElementById('open-add-member');
+	const closeBtn = document.getElementById('close-modal');
+	const modal = document.getElementById('modal-add-member') as HTMLDialogElement;
+
+	openBtn?.addEventListener('click', () => modal?.showModal());
+	closeBtn?.addEventListener('click', () => modal?.close());
+
+	const editBtn = document.getElementById('edit-cell-btn');
+	const editModal = document.getElementById('modal-edit-cell') as HTMLDialogElement;
+
+	editBtn?.addEventListener('click', () => editModal?.showModal());
+	
+	// Fechar ao clicar fora
+	[modal, editModal].forEach(m => {
+		m?.addEventListener('click', (e) => {
+			if (e.target === m) m.close();
+		});
+	});
+</script>

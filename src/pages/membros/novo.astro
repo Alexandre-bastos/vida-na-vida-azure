@@ -1,0 +1,309 @@
+---
+import AppLayout from '../../layouts/AppLayout.astro';
+import { ChevronLeft, Save, User, Mail, Phone, Shield, Calendar, Send } from 'lucide-react';
+import { getSession } from 'auth-astro/server';
+import prisma from '../../lib/prisma';
+import { sendInviteEmail } from '../../lib/mail';
+import bcrypt from 'bcryptjs';
+
+
+const session = await getSession(Astro.request);
+if (!session) return Astro.redirect('/login');
+
+const userRole = (session.user as any)?.role || 'MEMBRO';
+const isAdmin = userRole === 'ADMIN';
+const isCoordinator = userRole === 'COORDENADOR';
+const isLider = userRole === 'LIDER' || userRole === 'LIDER_TREINAMENTO';
+if (!isAdmin && !isCoordinator && !isLider) return Astro.redirect('/membros');
+
+let error = '';
+
+if (Astro.request.method === 'POST') {
+  try {
+    const formData = await Astro.request.formData();
+    const name = formData.get('name')?.toString();
+    const email = formData.get('email')?.toString();
+    const phone = formData.get('phone')?.toString();
+    const role = formData.get('role')?.toString();
+    const birthDate = formData.get('birthDate')?.toString();
+    const gender = formData.get('gender')?.toString() || null;
+    const city = formData.get('city')?.toString() || null;
+    const neighborhood = formData.get('neighborhood')?.toString() || null;
+
+    // Validar permissões de papel baseado no cargo do usuário
+    let permissionError = false;
+    if (isLider && userRole === 'LIDER_TREINAMENTO') {
+      // Lider em Treinamento só pode criar MEMBRO
+      if (role !== 'MEMBRO') {
+        error = 'Como Líder em Treinamento, você só pode adicionar Membros.';
+        permissionError = true;
+      }
+    } else if (isLider && userRole === 'LIDER') {
+      // Lider pode criar MEMBRO e LIDER_TREINAMENTO
+      if (role !== 'MEMBRO' && role !== 'LIDER_TREINAMENTO') {
+        error = 'Você não tem permissão para criar usuários com este cargo.';
+        permissionError = true;
+      }
+    }
+    
+    if (!permissionError && (!name || !email)) {
+      error = 'Nome e E-mail são obrigatórios.';
+    }
+    
+    if (!error) {
+      // Validar duplicidades (Nome, Email, Telefone)
+      const existingUser = await prisma.user.findFirst({
+        where: {
+          OR: [
+            { email: email },
+            { phone: phone ? phone : undefined },
+            { name: name }
+          ]
+        }
+      });
+
+      if (existingUser) {
+        if (existingUser.email === email) error = 'Este e-mail já está cadastrado.';
+        else if (existingUser.phone === phone) error = 'Este telefone já está cadastrado em outro perfil.';
+        else if (existingUser.name === name) error = 'Já existe um membro cadastrado com este nome exato.';
+      }
+    }
+
+    if (!error) {
+      // 1. Criar o usuário (sem senha)
+      const user = await prisma.user.create({
+        data: {
+          name: name!,
+          email: email!,
+          phone,
+          role: (role as any) || 'MEMBRO',
+          birthDate: birthDate ? new Date(birthDate) : null,
+          gender,
+          city,
+          neighborhood,
+          password: bcrypt.hashSync('vidanavida', 10),
+          updatedAt: new Date(),
+        }
+      });
+
+      // 2. Gerar Token de Convite
+      const token = crypto.randomUUID().replace(/-/g, '');
+      const expires = new Date(Date.now() + 48 * 60 * 60 * 1000); // 48 horas
+
+      await prisma.verificationtoken.create({
+        data: {
+          identifier: email,
+          token,
+          expires
+        }
+      });
+
+      // 3. Enviar E-mail de Convite
+      await sendInviteEmail(email, name, token);
+
+      return Astro.redirect('/membros');
+    }
+  } catch (e: any) {
+    console.error(e);
+    if (e.code === 'P2002') {
+      error = 'Este e-mail já está cadastrado.';
+    } else {
+      error = 'Ocorreu um erro ao salvar o membro.';
+    }
+  }
+}
+---
+
+<AppLayout title="Novo Membro">
+	<div class="space-y-6">
+		<header class="flex items-center gap-4">
+			<a href="/membros" class="w-10 h-10 rounded-xl bg-white shadow-sm border border-gray-100 flex items-center justify-center text-gray-500 hover:text-brand-primary transition-colors">
+				<ChevronLeft size={20} />
+			</a>
+			<div>
+				<h1 class="text-xl font-bold text-brand-dark">Novo Membro</h1>
+				<p class="text-[11px] text-gray-400 font-bold uppercase tracking-wider">Cadastro Manual</p>
+			</div>
+		</header>
+
+		{error && (
+			<div class="bg-red-50 text-red-500 p-4 rounded-2xl text-sm font-medium border border-red-100 animate-shake">
+				{error}
+			</div>
+		)}
+
+		<form method="POST" class="space-y-6 pb-24">
+			<!-- Seção: Informações Básicas -->
+			<div class="bg-white p-6 rounded-[2rem] shadow-sm border border-gray-100 space-y-4">
+				<div class="flex items-center gap-2 mb-2">
+					<div class="w-8 h-8 rounded-lg bg-blue-50 text-brand-primary flex items-center justify-center">
+						<User size={16} />
+					</div>
+					<h2 class="font-bold text-brand-dark">Informações Pessoais</h2>
+				</div>
+
+				<div class="space-y-1.5">
+					<label for="name" class="text-[11px] font-bold text-gray-400 uppercase tracking-wider ml-1">Nome Completo</label>
+					<input 
+						type="text" 
+						id="name" 
+						name="name" 
+						required 
+						placeholder="João Silva" 
+						class="w-full px-5 py-4 rounded-2xl border border-gray-100 bg-gray-50/50 focus:bg-white focus:ring-4 focus:ring-brand-primary/10 focus:border-brand-primary focus:outline-none transition-all text-sm" 
+					/>
+				</div>
+
+				<div class="space-y-1.5">
+					<label for="email" class="text-[11px] font-bold text-gray-400 uppercase tracking-wider ml-1">E-mail</label>
+					<input 
+						type="email" 
+						id="email" 
+						name="email" 
+						required 
+						placeholder="joao@email.com" 
+						class="w-full px-5 py-4 rounded-2xl border border-gray-100 bg-gray-50/50 focus:bg-white focus:ring-4 focus:ring-brand-primary/10 focus:border-brand-primary focus:outline-none transition-all text-sm" 
+					/>
+				</div>
+
+				<div class="grid grid-cols-2 gap-4">
+					<div class="space-y-1.5">
+						<label for="phone" class="text-[11px] font-bold text-gray-400 uppercase tracking-wider ml-1">Telefone</label>
+						<input 
+							type="tel" 
+							id="phone" 
+							name="phone" 
+							placeholder="(11) 99999-9999" 
+							class="w-full px-5 py-4 rounded-2xl border border-gray-100 bg-gray-50/50 focus:bg-white focus:ring-4 focus:ring-brand-primary/10 focus:border-brand-primary focus:outline-none transition-all text-sm phone-mask" 
+						/>
+					</div>
+					<div class="space-y-1.5">
+						<label for="birthDate" class="text-[11px] font-bold text-gray-400 uppercase tracking-wider ml-1">Nascimento</label>
+						<input 
+							type="date" 
+							id="birthDate" 
+							name="birthDate" 
+							class="w-full px-5 py-4 rounded-2xl border border-gray-100 bg-gray-50/50 focus:bg-white focus:ring-4 focus:ring-brand-primary/10 focus:border-brand-primary focus:outline-none transition-all text-sm" 
+						/>
+					</div>
+					<div class="space-y-1.5">
+						<label for="gender" class="text-[11px] font-bold text-gray-400 uppercase tracking-wider ml-1">Sexo (Opcional)</label>
+						<select 
+							id="gender" 
+							name="gender" 
+							class="w-full px-5 py-4 rounded-2xl border border-gray-100 bg-gray-50/50 focus:bg-white focus:ring-4 focus:ring-brand-primary/10 focus:border-brand-primary focus:outline-none transition-all text-sm appearance-none"
+						>
+							<option value="">Selecione...</option>
+							<option value="M">Masculino</option>
+							<option value="F">Feminino</option>
+						</select>
+					</div>
+				</div>
+
+				<div class="grid grid-cols-2 gap-4">
+					<div class="space-y-1.5">
+						<label for="city" class="text-[11px] font-bold text-gray-400 uppercase tracking-wider ml-1">Município (Opcional)</label>
+						<input 
+							type="text" 
+							id="city" 
+							name="city" 
+							placeholder="Sua cidade" 
+							class="w-full px-5 py-4 rounded-2xl border border-gray-100 bg-gray-50/50 focus:bg-white focus:ring-4 focus:ring-brand-primary/10 focus:border-brand-primary focus:outline-none transition-all text-sm" 
+						/>
+					</div>
+					<div class="space-y-1.5">
+						<label for="neighborhood" class="text-[11px] font-bold text-gray-400 uppercase tracking-wider ml-1">Bairro (Opcional)</label>
+						<input 
+							type="text" 
+							id="neighborhood" 
+							name="neighborhood" 
+							placeholder="Seu bairro" 
+							class="w-full px-5 py-4 rounded-2xl border border-gray-100 bg-gray-50/50 focus:bg-white focus:ring-4 focus:ring-brand-primary/10 focus:border-brand-primary focus:outline-none transition-all text-sm" 
+						/>
+					</div>
+				</div>
+			</div>
+
+			<!-- Seção: Acesso -->
+			<div class="bg-white p-6 rounded-[2rem] shadow-sm border border-gray-100 space-y-4">
+				<div class="flex items-center gap-2 mb-2">
+					<div class="w-8 h-8 rounded-lg bg-amber-50 text-brand-accent flex items-center justify-center">
+						<Shield size={16} />
+					</div>
+					<h2 class="font-bold text-brand-dark">Permissões e Acesso</h2>
+				</div>
+
+				<p class="text-[11px] text-gray-500 bg-blue-50 p-3 rounded-xl border border-blue-100 mb-4">
+					<span class="font-bold">Acesso:</span> Um e-mail de convite será enviado. A senha padrão do usuário será <strong>vidanavida</strong>.<br />
+          Oriente-o a alterá-lo logo no primeiro acesso através do Perfil.
+				{isLider && <span class="block mt-2">Como Líder, você pode adicionar membros e líderes em treinamento à sua célula.</span>}
+			</p>
+
+				<div class="space-y-1.5">
+					<label for="role" class="text-[11px] font-bold text-gray-400 uppercase tracking-wider ml-1">Cargo / Função</label>
+					<select 
+						id="role" 
+						name="role" 
+						class="w-full px-5 py-4 rounded-2xl border border-gray-100 bg-gray-50/50 focus:bg-white focus:ring-4 focus:ring-brand-primary/10 focus:border-brand-primary focus:outline-none transition-all text-sm appearance-none"
+					>
+						<option value="MEMBRO">Membro</option>
+						<option value="LIDER_TREINAMENTO">Líder em Treinamento</option>
+					{(isAdmin || isCoordinator) && (
+						<>
+							<option value="LIDER">Líder de Célula</option>
+							<option value="COORDENADOR">Coordenador</option>
+							<option value="ADMIN">Administrador</option>
+						</>
+					)}
+					</select>
+				</div>
+				<p class="text-[10px] text-gray-400 px-1 leading-relaxed">
+					Nota: Ao definir um cargo de liderança, este usuário poderá gerenciar presenças e relatórios de sua respectiva célula.
+				</p>
+			</div>
+
+			<!-- Botão Salvar -->
+			<div class="fixed bottom-24 md:bottom-6 left-0 w-full px-6 flex justify-center z-20">
+				<button type="submit" class="w-full max-w-sm bg-brand-primary text-white font-bold py-4 rounded-2xl shadow-xl shadow-brand-primary/30 flex items-center justify-center gap-3 hover:brightness-110 transition-all active:scale-95">
+					<Save size={20} />
+					Salvar Membro
+				</button>
+			</div>
+		</form>
+	</div>
+</AppLayout>
+
+<script>
+  // Máscara de telefone (Brasileiro)
+  const phoneInputs = document.querySelectorAll('.phone-mask');
+  
+  phoneInputs.forEach(input => {
+    input.addEventListener('input', (e: any) => {
+      let value = e.target.value.replace(/\D/g, '');
+      if (value.length > 11) value = value.slice(0, 11);
+      
+      if (value.length > 10) {
+        value = value.replace(/^(\d{2})(\d{5})(\d{4}).*/, '($1) $2-$3');
+      } else if (value.length > 5) {
+        value = value.replace(/^(\d{2})(\d{4})(\d{0,4}).*/, '($1) $2-$3');
+      } else if (value.length > 2) {
+        value = value.replace(/^(\d{2})(\d{0,5})/, '($1) $2');
+      } else if (value.length > 0) {
+        value = value.replace(/^(\d{0,2})/, '($1');
+      }
+      
+      e.target.value = value;
+    });
+  });
+</script>
+
+<style>
+	@keyframes shake {
+		0%, 100% { transform: translateX(0); }
+		25% { transform: translateX(-5px); }
+		75% { transform: translateX(5px); }
+	}
+	.animate-shake {
+		animation: shake 0.2s ease-in-out 0s 2;
+	}
+</style>

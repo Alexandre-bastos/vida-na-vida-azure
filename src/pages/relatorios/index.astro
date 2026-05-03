@@ -1,0 +1,175 @@
+---
+import ReportLayout from '../../layouts/ReportLayout.astro';
+import { getSession } from 'auth-astro/server';
+import prisma from '../../lib/prisma';
+import { AlertTriangle, TrendingUp, Users } from 'lucide-react';
+
+const session = await getSession(Astro.request);
+if (!session) return Astro.redirect('/login');
+
+const userRole = (session.user as any)?.role;
+if (userRole !== 'ADMIN' && userRole !== 'COORDENADOR') {
+  return Astro.redirect('/');
+}
+
+// Extrair filtros de data
+const url = new URL(Astro.request.url);
+const startParam = url.searchParams.get('startDate');
+const endParam = url.searchParams.get('endDate');
+const cellId = url.searchParams.get('cellId');
+
+const startDate = startParam ? new Date(startParam) : null;
+const endDate = endParam ? new Date(endParam) : new Date();
+
+const cellFilter = cellId ? { id: cellId } : {};
+const cellMembershipFilter = cellId ? { cellHistory: { some: { cellId, endDate: null } } } : {};
+
+// Buscar Indicadores Principais
+const activeCellsCount = await prisma.cell.count({ where: cellFilter });
+const activeMembersCount = await prisma.user.count({ where: { active: true, ...cellMembershipFilter } });
+const inactiveMembersCount = await prisma.user.count({ where: { active: false, ...cellMembershipFilter } });
+
+// Novos Membros no período selecionado
+const newMembersCount = await prisma.user.count({
+  where: {
+    active: true,
+    createdAt: {
+      gte: startDate || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+      lte: endDate
+    },
+    ...cellMembershipFilter
+  }
+});
+
+// Alertas (Células sem encontros no período selecionado)
+// Se não houver filtro, usamos os últimos 14 dias como padrão
+const alertStartDate = startDate || new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
+
+const cellsWithoutRecentMeetings = await prisma.cell.findMany({
+  where: {
+    ...cellFilter,
+    meetings: {
+      none: {
+        date: {
+          gte: alertStartDate,
+          lte: endDate
+        }
+      }
+    }
+  }
+});
+
+// Líderes em treinamento por célula
+const cellsWithLeaders = await prisma.cell.findMany({
+  where: cellFilter,
+  include: {
+    memberships: {
+      where: { endDate: null, user: { role: 'LIDER_TREINAMENTO' } },
+      include: { user: true }
+    }
+  }
+});
+
+// Bairros
+const cellNeighborhoods = await prisma.cell.groupBy({
+  by: ['neighborhood'],
+  where: cellFilter,
+  _count: true
+});
+
+const memberNeighborhoods = await prisma.user.groupBy({
+  by: ['neighborhood'],
+  where: { active: true, ...cellMembershipFilter },
+  _count: true
+});
+---
+
+<ReportLayout title="Board Geral" activeTab="geral">
+  
+  <!-- KPIs -->
+  <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+    <div class="bg-white p-5 rounded-3xl shadow-sm border border-gray-100 flex flex-col justify-center items-center text-center">
+      <div class="w-10 h-10 rounded-full bg-blue-50 text-blue-500 flex items-center justify-center mb-2">
+        <TrendingUp size={20} />
+      </div>
+      <p class="text-xs text-gray-500 font-medium uppercase tracking-wider">Células Ativas</p>
+      <p class="text-3xl font-bold text-brand-dark mt-1">{activeCellsCount}</p>
+    </div>
+    <div class="bg-white p-5 rounded-3xl shadow-sm border border-gray-100 flex flex-col justify-center items-center text-center">
+      <div class="w-10 h-10 rounded-full bg-green-50 text-green-500 flex items-center justify-center mb-2">
+        <Users size={20} />
+      </div>
+      <p class="text-xs text-gray-500 font-medium uppercase tracking-wider">Membros Ativos</p>
+      <p class="text-3xl font-bold text-brand-dark mt-1">{activeMembersCount}</p>
+    </div>
+    <div class="bg-white p-5 rounded-3xl shadow-sm border border-gray-100 flex flex-col justify-center items-center text-center">
+      <div class="w-10 h-10 rounded-full bg-indigo-50 text-indigo-500 flex items-center justify-center mb-2">
+        <Users size={20} />
+      </div>
+      <p class="text-xs text-gray-500 font-medium uppercase tracking-wider">Novos Membros</p>
+      <p class="text-3xl font-bold text-brand-dark mt-1">{newMembersCount}</p>
+    </div>
+    <div class="bg-white p-5 rounded-3xl shadow-sm border border-gray-100 flex flex-col justify-center items-center text-center">
+      <div class="w-10 h-10 rounded-full bg-amber-50 text-amber-500 flex items-center justify-center mb-2">
+        <AlertTriangle size={20} />
+      </div>
+      <p class="text-xs text-gray-500 font-medium uppercase tracking-wider">Sem Reunião</p>
+      <p class="text-3xl font-bold text-brand-dark mt-1">{cellsWithoutRecentMeetings.length}</p>
+    </div>
+  </div>
+
+  <!-- Alertas -->
+  {cellsWithoutRecentMeetings.length > 0 && (
+    <div class="bg-red-50 border border-red-100 p-5 rounded-3xl">
+      <h3 class="text-red-800 font-bold flex items-center gap-2 mb-3">
+        <AlertTriangle size={18} /> Células sem relatórios no período selecionado
+      </h3>
+      <div class="flex flex-wrap gap-2">
+        {cellsWithoutRecentMeetings.map(c => (
+          <span class="bg-white px-3 py-1 rounded-lg text-xs font-bold text-red-600 border border-red-100 shadow-sm">{c.name}</span>
+        ))}
+      </div>
+    </div>
+  )}
+
+  <!-- Líderes em Treinamento -->
+  <section class="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
+    <h3 class="font-bold text-brand-dark mb-4">Líderes em Treinamento por Célula</h3>
+    <div class="space-y-3">
+      {cellsWithLeaders.map(cell => (
+        <div class="flex items-center justify-between border-b border-gray-50 pb-2 last:border-0">
+          <span class="text-sm font-medium text-gray-600">{cell.name}</span>
+          <span class="w-6 h-6 flex items-center justify-center rounded-full bg-brand-bg text-brand-primary text-xs font-bold">{cell.memberships.length}</span>
+        </div>
+      ))}
+    </div>
+  </section>
+
+  <!-- Bairros (Células vs Membros) -->
+  <section class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+    <div class="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
+      <h3 class="font-bold text-brand-dark mb-4 text-sm">Distribuição de Células por Bairro</h3>
+      <div class="space-y-2">
+        {cellNeighborhoods.map(c => (
+          <div class="flex items-center justify-between">
+            <span class="text-xs text-gray-500">{c.neighborhood || 'Não informado'}</span>
+            <span class="text-xs font-bold px-2 py-0.5 bg-gray-50 rounded-md">{c._count}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+    <div class="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
+      <h3 class="font-bold text-brand-dark mb-4 text-sm">Distribuição de Membros por Bairro</h3>
+      <div class="space-y-2">
+        {memberNeighborhoods.map(m => (
+          <div class="flex items-center justify-between">
+            <span class="text-xs text-gray-500">{m.neighborhood || 'Não informado'}</span>
+            <span class="text-xs font-bold px-2 py-0.5 bg-gray-50 rounded-md">{m._count}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  </section>
+
+</ReportLayout>
+

@@ -1,0 +1,144 @@
+---
+import AppLayout from '../../layouts/AppLayout.astro';
+import { UserPlus, Search, Phone, Mail, Shield, ChevronRight } from 'lucide-react';
+import { getSession } from 'auth-astro/server';
+import prisma from '../../lib/prisma';
+
+const session = await getSession(Astro.request);
+if (!session) return Astro.redirect('/login');
+
+const userId = (session.user as any)?.id;
+const userRole = ((session.user as any)?.role || 'MEMBRO').toUpperCase();
+if (userRole === 'MEMBRO') return Astro.redirect('/');
+
+const isAdmin = userRole === 'ADMIN';
+const isCoordinator = userRole === 'COORDENADOR';
+const isLider = userRole.startsWith('LIDER');
+
+// Buscar as células que o usuário lidera ou faz parte (para filtrar membros)
+const myCells = await prisma.cell.findMany({
+  where: {
+    OR: [
+      { leaderId: userId },
+      { memberships: { some: { userId, endDate: null } } }
+    ]
+  },
+  select: { id: true }
+});
+const myCellIds = myCells.map(c => c.id);
+
+// Construir filtro de busca de membros
+let whereClause: any = {};
+
+if (!isAdmin && !isCoordinator) {
+    // Líderes e LTs só veem:
+    // 1. Membros de sua(s) célula(s) (via membership)
+    // 2. Líderes de sua(s) célula(s) (via ledCell)
+    // 3. Membros sem célula E que não lideram nenhuma célula
+    // 4. NUNCA Admin ou Coordenador
+    whereClause = {
+        role: { notIn: ['ADMIN', 'COORDENADOR'] },
+        OR: [
+            // Membros da minha célula
+            { cellHistory: { some: { cellId: { in: myCellIds }, endDate: null } } },
+            // Eu mesmo (se for líder)
+            { id: userId },
+            // Líderes das minhas células (caso eu seja LT)
+            { ledCell: { id: { in: myCellIds } } },
+            // Pessoas realmente sem célula (não são membros de nada E não lideram nada)
+            { 
+                AND: [
+                    { cellHistory: { none: { endDate: null } } },
+                    { ledCell: { is: null } }
+                ]
+            }
+        ]
+    };
+}
+
+// Buscar usuários filtrados
+const users = await prisma.user.findMany({
+  where: whereClause,
+  orderBy: { name: 'asc' }
+});
+
+const canAddMembers = isAdmin || isCoordinator || isLider;
+
+const roleColors: Record<string, string> = {
+  ADMIN: 'bg-red-50 text-red-500 border-red-100',
+  COORDENADOR: 'bg-purple-50 text-purple-500 border-purple-100',
+  LIDER: 'bg-blue-50 text-blue-500 border-blue-100',
+  LIDER_TREINAMENTO: 'bg-amber-50 text-amber-500 border-amber-100',
+  MEMBRO: 'bg-gray-50 text-gray-400 border-gray-100'
+};
+---
+
+<AppLayout title="Membros">
+	<div class="space-y-6">
+		<header class="flex items-center justify-between">
+			<div>
+				<div class="flex items-center gap-3">
+					<a href="/" class="text-gray-400 hover:text-brand-primary hidden sm:inline">Home</a>
+					<h1 class="text-2xl font-bold text-brand-dark">Membros</h1>
+				</div>
+				<p class="text-sm text-gray-500 mt-1">Gerencie as pessoas da sua comunidade.</p>
+			</div>
+			{canAddMembers && (
+				<a href="/membros/novo" class="bg-brand-primary text-white p-3 rounded-2xl shadow-lg shadow-brand-primary/20 hover:scale-105 transition-transform active:scale-95">
+					<UserPlus size={20} />
+				</a>
+			)}
+		</header>
+
+		<!-- Search Bar -->
+		<div class="relative">
+			<Search class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+			<input 
+				type="text" 
+				placeholder="Buscar membro por nome..." 
+				class="w-full pl-12 pr-4 py-4 rounded-2xl border border-gray-100 bg-white shadow-sm focus:outline-none focus:ring-4 focus:ring-brand-primary/5 focus:border-brand-primary transition-all text-sm"
+			/>
+		</div>
+
+		<div class="grid gap-3">
+			{users.map((user) => (
+			<div class={`bg-white p-4 rounded-3xl shadow-sm border border-gray-100 flex items-center justify-between hover:border-brand-light transition-all group ${!user.active ? 'opacity-50' : ''}`}>
+					<div class="flex items-center gap-4">
+						<div class="w-12 h-12 rounded-2xl bg-brand-bg flex items-center justify-center text-brand-primary overflow-hidden border border-gray-50 shadow-inner">
+							{user.image ? (
+								<img src={user.image} alt={user.name || ''} class="w-full h-full object-cover" />
+							) : (
+								<span class="font-bold text-lg">{user.name?.charAt(0)}</span>
+							)}
+						</div>
+						<div>
+							<h3 class="font-bold text-brand-dark leading-tight">{user.name}</h3>
+							<div class="flex items-center gap-2 mt-1">
+								<span class={`text-[9px] font-bold px-2 py-0.5 rounded-full border uppercase tracking-wider ${roleColors[user.role]}`}>
+									{user.role.replace('_', ' ')}
+								</span>
+								{!user.active && (
+									<span class="text-[9px] font-bold px-2 py-0.5 rounded-full border uppercase tracking-wider bg-red-50 text-red-500 border-red-100">
+										INATIVO
+									</span>
+								)}
+							</div>
+						</div>
+					</div>
+
+					<div class="flex items-center gap-2">
+						{user.phone && (
+							<a href={`tel:${user.phone}`} class="w-9 h-9 rounded-xl bg-gray-50 flex items-center justify-center text-gray-400 hover:text-brand-primary hover:bg-blue-50 transition-all">
+								<Phone size={16} />
+							</a>
+						)}
+						<a href={`/membros/${user.id}`} class="w-9 h-9 rounded-xl bg-gray-50 flex items-center justify-center text-gray-400 group-hover:text-brand-primary group-hover:bg-blue-50 transition-all">
+							<ChevronRight size={18} />
+						</a>
+					</div>
+				</div>
+			))}
+		</div>
+	</div>
+</AppLayout>
+

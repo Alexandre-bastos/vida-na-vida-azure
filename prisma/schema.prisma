@@ -1,0 +1,183 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "rhel-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model account {
+  id                String  @id @default(uuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+  user              user    @relation(fields: [userId], references: [id], onDelete: Cascade, map: "Account_userId_fkey")
+
+  @@unique([provider, providerAccountId], map: "Account_provider_providerAccountId_key")
+  @@index([userId], map: "Account_userId_fkey")
+}
+
+model cell {
+  id           String           @id @default(uuid())
+  name         String
+  address      String?
+  neighborhood String?
+  dayOfWeek    Int?
+  time         String?
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+  leaderId     String?          @unique(map: "Cell_leaderId_key")
+  leader       user?            @relation("CurrentCellLeader", fields: [leaderId], references: [id], map: "Cell_leaderId_fkey")
+  memberships  cellmembership[]
+  meetings     meeting[]
+  visitors     visitor[]
+}
+
+model cellmembership {
+  id         String                    @id @default(uuid())
+  startDate  DateTime                  @default(now())
+  endDate    DateTime?
+  roleAtTime cellmembership_roleAtTime @default(MEMBRO)
+  userId     String
+  cellId     String
+  cell       cell                      @relation(fields: [cellId], references: [id], onDelete: Cascade, map: "CellMembership_cellId_fkey")
+  user       user                      @relation(fields: [userId], references: [id], onDelete: Cascade, map: "CellMembership_userId_fkey")
+
+  @@index([cellId], map: "CellMembership_cellId_fkey")
+  @@index([userId], map: "CellMembership_userId_fkey")
+}
+
+model meeting {
+  id        String     @id @default(uuid())
+  date      DateTime
+  topic     String?
+  report    String?
+  photoUrl  String?
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  cellId    String
+  cell      cell       @relation(fields: [cellId], references: [id], onDelete: Cascade, map: "Meeting_cellId_fkey")
+  presences presence[]
+  visitors  visitor[]
+
+  @@index([cellId], map: "Meeting_cellId_fkey")
+}
+
+model notice {
+  id        String   @id @default(uuid())
+  title     String
+  content   String
+  imageUrl  String?
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model presence {
+  id           String  @id @default(uuid())
+  isPresent    Boolean @default(true)
+  observations String?
+  meetingId    String
+  userId       String
+  meeting      meeting @relation(fields: [meetingId], references: [id], onDelete: Cascade, map: "Presence_meetingId_fkey")
+  user         user    @relation(fields: [userId], references: [id], onDelete: Cascade, map: "Presence_userId_fkey")
+
+  @@unique([meetingId, userId], map: "Presence_meetingId_userId_key")
+  @@index([userId], map: "Presence_userId_fkey")
+}
+
+model session {
+  id           String   @id @default(uuid())
+  sessionToken String   @unique(map: "Session_sessionToken_key")
+  userId       String
+  expires      DateTime
+  user         user     @relation(fields: [userId], references: [id], onDelete: Cascade, map: "Session_userId_fkey")
+
+  @@index([userId], map: "Session_userId_fkey")
+}
+
+model user {
+  id              String           @id @default(uuid())
+  name            String?
+  email           String?          @unique(map: "User_email_key")
+  emailVerified   DateTime?
+  image           String?
+  password        String?
+  role            user_role        @default(MEMBRO)
+  active          Boolean          @default(true)
+  phone           String?
+  birthDate       DateTime?
+  gender          String?
+  city            String?
+  neighborhood    String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  accounts        account[]
+  ledCell         cell?            @relation("CurrentCellLeader")
+  cellHistory     cellmembership[]
+  presences       presence[]
+  sessions        session[]
+  invitedVisitors visitor[]        @relation("VisitorInviter")
+}
+
+model verificationtoken {
+  identifier String
+  token      String   @unique(map: "VerificationToken_token_key")
+  expires    DateTime
+
+  @@unique([identifier, token], map: "VerificationToken_identifier_token_key")
+}
+
+model visitor {
+  id           String   @id @default(uuid())
+  name         String
+  phone        String?
+  observations String?
+  createdAt    DateTime @default(now())
+  invitedById  String?
+  cellId       String?
+  meetingId    String?
+  cell         cell?    @relation(fields: [cellId], references: [id], map: "Visitor_cellId_fkey")
+  invitedBy    user?    @relation("VisitorInviter", fields: [invitedById], references: [id], map: "Visitor_invitedById_fkey")
+  meeting      meeting? @relation(fields: [meetingId], references: [id], map: "Visitor_meetingId_fkey")
+
+  @@index([cellId], map: "Visitor_cellId_fkey")
+  @@index([invitedById], map: "Visitor_invitedById_fkey")
+  @@index([meetingId], map: "Visitor_meetingId_fkey")
+}
+
+enum cellmembership_roleAtTime {
+  ADMIN
+  COORDENADOR
+  LIDER
+  LIDER_TREINAMENTO
+  MEMBRO
+}
+
+enum user_role {
+  ADMIN
+  COORDENADOR
+  LIDER
+  LIDER_TREINAMENTO
+  MEMBRO
+}
+
+model lesson {
+  id        String   @id @default(uuid())
+  title     String
+  fileUrl   String
+  fileName  String?
+  active    Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}

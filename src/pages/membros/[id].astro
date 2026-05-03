@@ -1,0 +1,330 @@
+---
+import AppLayout from '../../layouts/AppLayout.astro';
+import { ChevronLeft, Save, User, Mail, Phone, Shield, Calendar, Trash2, Key } from 'lucide-react';
+import { getSession } from 'auth-astro/server';
+import prisma from '../../lib/prisma';
+import bcrypt from 'bcryptjs';
+
+const session = await getSession(Astro.request);
+if (!session) return Astro.redirect('/login');
+
+const { id } = Astro.params;
+const userRole = session.user?.role || 'MEMBRO';
+
+if (userRole === 'MEMBRO') return Astro.redirect('/');
+
+const isAdmin = userRole === 'ADMIN';
+const isCoordinator = userRole === 'COORDENADOR';
+const isLider = userRole === 'LIDER' || userRole === 'LIDER_TREINAMENTO';
+if (!isAdmin && !isCoordinator && !isLider) return Astro.redirect('/membros');
+
+const member = await prisma.user.findUnique({
+  where: { id }
+});
+
+if (!member) return Astro.redirect('/membros');
+
+let error = '';
+let success = '';
+
+if (Astro.request.method === 'POST') {
+  const formData = await Astro.request.formData();
+  const action = formData.get('action')?.toString();
+
+  if (action === 'update') {
+    try {
+      const name = formData.get('name')?.toString();
+      const phone = formData.get('phone')?.toString();
+      const role = formData.get('role')?.toString();
+      const birthDate = formData.get('birthDate')?.toString();
+      const gender = formData.get('gender')?.toString() || null;
+      const city = formData.get('city')?.toString() || null;
+      const neighborhood = formData.get('neighborhood')?.toString() || null;
+      const password = formData.get('password')?.toString();
+      const active = formData.get('active') === 'on';
+
+      // Validar permissões de papel baseado no cargo do usuário
+      let permissionError = false;
+      if (isLider && userRole === 'LIDER_TREINAMENTO') {
+        // Lider em Treinamento só pode atribuir MEMBRO
+        if (role !== 'MEMBRO') {
+          error = 'Como Líder em Treinamento, você só pode atribuir o papel de Membro.';
+          permissionError = true;
+        }
+      } else if (isLider && userRole === 'LIDER') {
+        // Lider pode atribuir MEMBRO e LIDER_TREINAMENTO
+        if (role !== 'MEMBRO' && role !== 'LIDER_TREINAMENTO') {
+          error = 'Você não tem permissão para atribuir este cargo.';
+          permissionError = true;
+        }
+      }
+
+      if (!permissionError) {
+        const updateData: any = {
+          name,
+          phone,
+          role: (role as any) || 'MEMBRO',
+          birthDate: birthDate ? new Date(birthDate) : null,
+          gender,
+          city,
+          neighborhood,
+          active,
+        };
+
+        // Só atualiza a senha se ela foi preenchida
+        if (password && password.trim() !== '') {
+          updateData.password = bcrypt.hashSync(password, 10);
+        }
+
+        await prisma.user.update({
+          where: { id },
+          data: updateData
+        });
+        success = 'Dados atualizados com sucesso!';
+        return Astro.redirect('/membros');
+      }
+    } catch (e) {
+      console.error(e);
+      error = 'Erro ao atualizar dados.';
+    }
+  }
+
+  if (action === 'delete') {
+    try {
+      await prisma.user.delete({ where: { id } });
+      return Astro.redirect('/membros');
+    } catch (e) {
+      console.error(e);
+      error = 'Erro ao excluir membro. Verifique se ele possui vínculos ativos.';
+    }
+  }
+}
+---
+
+<AppLayout title={`Editar: ${member.name}`}>
+	<div class="space-y-6">
+		<header class="flex items-center justify-between">
+			<div class="flex items-center gap-4">
+				<a href="/membros" class="w-10 h-10 rounded-xl bg-white shadow-sm border border-gray-100 flex items-center justify-center text-gray-500 hover:text-brand-primary transition-colors">
+					<ChevronLeft size={20} />
+				</a>
+				<div>
+					<h1 class="text-xl font-bold text-brand-dark">{member.name}</h1>
+					<p class="text-[11px] text-gray-400 font-bold uppercase tracking-wider">Edição de Membro</p>
+				</div>
+			</div>
+			
+		</header>
+
+		{error && (
+			<div class="bg-red-50 text-red-500 p-4 rounded-2xl text-sm font-medium border border-red-100">
+				{error}
+			</div>
+		)}
+
+		<form method="POST" class="space-y-6 pb-24">
+			<input type="hidden" name="action" value="update" />
+			
+			<!-- Foto e Info Estática -->
+			<div class="flex flex-col items-center gap-4 py-4">
+				<div class="w-24 h-24 rounded-[2.5rem] bg-brand-bg flex items-center justify-center text-brand-primary overflow-hidden border-4 border-white shadow-lg">
+					{member.image ? (
+						<img src={member.image} alt={member.name || ''} class="w-full h-full object-cover" />
+					) : (
+						<span class="font-bold text-3xl">{member.name?.charAt(0)}</span>
+					)}
+				</div>
+				<div class="text-center">
+					<p class="text-xs text-gray-400 font-medium">{member.email}</p>
+				</div>
+			</div>
+
+			<!-- Seção: Informações Básicas -->
+			<div class="bg-white p-6 rounded-[2rem] shadow-sm border border-gray-100 space-y-4">
+				<div class="flex items-center gap-2 mb-2">
+					<div class="w-8 h-8 rounded-lg bg-blue-50 text-brand-primary flex items-center justify-center">
+						<User size={16} />
+					</div>
+					<h2 class="font-bold text-brand-dark">Informações Pessoais</h2>
+				</div>
+
+				<div class="space-y-1.5">
+					<label for="name" class="text-[11px] font-bold text-gray-400 uppercase tracking-wider ml-1">Nome Completo</label>
+					<input 
+						type="text" 
+						id="name" 
+						name="name" 
+						required 
+						value={member.name}
+						class="w-full px-5 py-4 rounded-2xl border border-gray-100 bg-gray-50/50 focus:bg-white focus:ring-4 focus:ring-brand-primary/10 focus:border-brand-primary focus:outline-none transition-all text-sm" 
+					/>
+				</div>
+
+				<div class="grid grid-cols-2 gap-4">
+					<div class="space-y-1.5">
+						<label for="phone" class="text-[11px] font-bold text-gray-400 uppercase tracking-wider ml-1">Telefone</label>
+						<input 
+							type="tel" 
+							id="phone" 
+							name="phone" 
+							value={member.phone || ''}
+							placeholder="(11) 99999-9999" 
+							class="w-full px-5 py-4 rounded-2xl border border-gray-100 bg-gray-50/50 focus:bg-white focus:ring-4 focus:ring-brand-primary/10 focus:border-brand-primary focus:outline-none transition-all text-sm phone-mask" 
+						/>
+					</div>
+					<div class="space-y-1.5">
+						<label for="birthDate" class="text-[11px] font-bold text-gray-400 uppercase tracking-wider ml-1">Nascimento</label>
+						<input 
+							type="date" 
+							id="birthDate" 
+							name="birthDate" 
+							value={member.birthDate ? member.birthDate.toISOString().split('T')[0] : ''}
+							class="w-full px-5 py-4 rounded-2xl border border-gray-100 bg-gray-50/50 focus:bg-white focus:ring-4 focus:ring-brand-primary/10 focus:border-brand-primary focus:outline-none transition-all text-sm" 
+						/>
+					</div>
+					<div class="space-y-1.5">
+						<label for="gender" class="text-[11px] font-bold text-gray-400 uppercase tracking-wider ml-1">Sexo (Opcional)</label>
+						<select 
+							id="gender" 
+							name="gender" 
+							class="w-full px-5 py-4 rounded-2xl border border-gray-100 bg-gray-50/50 focus:bg-white focus:ring-4 focus:ring-brand-primary/10 focus:border-brand-primary focus:outline-none transition-all text-sm appearance-none"
+						>
+							<option value="" selected={!member.gender}>Selecione...</option>
+							<option value="M" selected={member.gender === 'M'}>Masculino</option>
+							<option value="F" selected={member.gender === 'F'}>Feminino</option>
+						</select>
+					</div>
+				</div>
+
+				<div class="grid grid-cols-2 gap-4">
+					<div class="space-y-1.5">
+						<label for="city" class="text-[11px] font-bold text-gray-400 uppercase tracking-wider ml-1">Município (Opcional)</label>
+						<input 
+							type="text" 
+							id="city" 
+							name="city" 
+							value={member.city || ''}
+							placeholder="Sua cidade" 
+							class="w-full px-5 py-4 rounded-2xl border border-gray-100 bg-gray-50/50 focus:bg-white focus:ring-4 focus:ring-brand-primary/10 focus:border-brand-primary focus:outline-none transition-all text-sm" 
+						/>
+					</div>
+					<div class="space-y-1.5">
+						<label for="neighborhood" class="text-[11px] font-bold text-gray-400 uppercase tracking-wider ml-1">Bairro (Opcional)</label>
+						<input 
+							type="text" 
+							id="neighborhood" 
+							name="neighborhood" 
+							value={member.neighborhood || ''}
+							placeholder="Seu bairro" 
+							class="w-full px-5 py-4 rounded-2xl border border-gray-100 bg-gray-50/50 focus:bg-white focus:ring-4 focus:ring-brand-primary/10 focus:border-brand-primary focus:outline-none transition-all text-sm" 
+						/>
+					</div>
+				</div>
+			</div>
+
+			<!-- Seção: Acesso -->
+			<div class="bg-white p-6 rounded-[2rem] shadow-sm border border-gray-100 space-y-4">
+				<div class="flex items-center gap-2 mb-2">
+					<div class="w-8 h-8 rounded-lg bg-amber-50 text-brand-accent flex items-center justify-center">
+						<Shield size={16} />
+					</div>
+					<h2 class="font-bold text-brand-dark">Permissões e Acesso</h2>
+				</div>
+
+				<div class="space-y-1.5">
+					<label for="password" class="text-[11px] font-bold text-gray-400 uppercase tracking-wider ml-1">Nova Senha (Deixe em branco para não alterar)</label>
+					<div class="relative">
+						<Key class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300" size={16} />
+						<input 
+							type="password" 
+							id="password" 
+							name="password" 
+							placeholder="••••••••" 
+							class="w-full pl-12 pr-5 py-4 rounded-2xl border border-gray-100 bg-gray-50/50 focus:bg-white focus:ring-4 focus:ring-brand-primary/10 focus:border-brand-primary focus:outline-none transition-all text-sm" 
+						/>
+					</div>
+				</div>
+
+				<div class="space-y-1.5">
+					<label for="role" class="text-[11px] font-bold text-gray-400 uppercase tracking-wider ml-1">Cargo / Função</label>
+					<select 
+						id="role" 
+						name="role" 
+						class="w-full px-5 py-4 rounded-2xl border border-gray-100 bg-gray-50/50 focus:bg-white focus:ring-4 focus:ring-brand-primary/10 focus:border-brand-primary focus:outline-none transition-all text-sm appearance-none"
+					>
+						<option value="MEMBRO" selected={member.role === 'MEMBRO'}>Membro</option>
+						<option value="LIDER_TREINAMENTO" selected={member.role === 'LIDER_TREINAMENTO'}>Líder em Treinamento</option>
+						{(isAdmin || isCoordinator) && (
+							<>
+								<option value="LIDER" selected={member.role === 'LIDER'}>Líder de Célula</option>
+								<option value="COORDENADOR" selected={member.role === 'COORDENADOR'}>Coordenador</option>
+								<option value="ADMIN" selected={member.role === 'ADMIN'}>Administrador</option>
+							</>
+						)}
+					</select>
+				</div>
+
+				<!-- Toggle Conta Ativa -->
+				<div class="flex items-center justify-between p-4 rounded-2xl border border-gray-100 bg-gray-50/30">
+					<div>
+						<p class="font-semibold text-sm text-brand-dark">Conta Ativa</p>
+						<p class="text-[11px] text-gray-400">Desative para bloquear o acesso sem excluir o histórico.</p>
+					</div>
+					<label class="relative inline-flex items-center cursor-pointer">
+						<input type="checkbox" name="active" class="sr-only peer" checked={member.active} />
+						<div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-brand-primary/20 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-500"></div>
+					</label>
+				</div>
+			</div>
+
+			<!-- Botão Salvar -->
+			<div class="fixed bottom-24 md:bottom-6 left-0 w-full px-6 flex justify-center z-20">
+				<button type="submit" class="w-full max-w-sm bg-brand-primary text-white font-bold py-4 rounded-2xl shadow-xl shadow-brand-primary/30 flex items-center justify-center gap-3 hover:brightness-110 transition-all active:scale-95">
+					<Save size={20} />
+					Salvar Alterações
+				</button>
+			</div>
+
+			<!-- Botão Excluir (Perigoso) -->
+			<div class="pt-4 pb-20">
+				<button 
+					type="button" 
+					onclick="if(confirm('Tem certeza que deseja excluir permanentemente este membro? Esta ação não pode ser desfeita.')) { document.getElementById('delete-form').submit(); }"
+					class="w-full py-4 text-red-500 font-semibold text-sm hover:bg-red-50 rounded-2xl transition-colors flex items-center justify-center gap-2"
+				>
+					<Trash2 size={16} />
+					Excluir Membro
+				</button>
+			</div>
+		</form>
+
+		<!-- Formulário de Exclusão (Oculto) -->
+		<form id="delete-form" method="POST" class="hidden">
+			<input type="hidden" name="action" value="delete" />
+		</form>
+	</div>
+</AppLayout>
+
+<script>
+  // Máscara de telefone (Brasileiro)
+  const phoneInputs = document.querySelectorAll('.phone-mask');
+  
+  phoneInputs.forEach(input => {
+    input.addEventListener('input', (e: any) => {
+      let value = e.target.value.replace(/\D/g, '');
+      if (value.length > 11) value = value.slice(0, 11);
+      
+      if (value.length > 10) {
+        value = value.replace(/^(\d{2})(\d{5})(\d{4}).*/, '($1) $2-$3');
+      } else if (value.length > 5) {
+        value = value.replace(/^(\d{2})(\d{4})(\d{0,4}).*/, '($1) $2-$3');
+      } else if (value.length > 2) {
+        value = value.replace(/^(\d{2})(\d{0,5})/, '($1) $2');
+      } else if (value.length > 0) {
+        value = value.replace(/^(\d{0,2})/, '($1');
+      }
+      
+      e.target.value = value;
+    });
+  });
+</script>

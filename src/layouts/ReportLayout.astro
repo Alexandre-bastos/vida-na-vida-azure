@@ -1,0 +1,120 @@
+---
+import AppLayout from './AppLayout.astro';
+import { LayoutDashboard, Activity, Users, ChevronLeft, Megaphone } from 'lucide-react';
+import { getSession } from 'auth-astro/server';
+import prisma from '../lib/prisma';
+
+interface Props {
+  title: string;
+  activeTab: 'geral' | 'frequencia' | 'perfil';
+}
+
+const { title, activeTab } = Astro.props;
+
+const url = new URL(Astro.request.url);
+const startDate = url.searchParams.get('startDate') || '';
+const endDate = url.searchParams.get('endDate') || '';
+const cellId = url.searchParams.get('cellId') || '';
+
+const filterParams = `?startDate=${startDate}&endDate=${endDate}&cellId=${cellId}`;
+
+// Fetch available cells for the filter
+const session = await getSession(Astro.request);
+const userRole = (session?.user as any)?.role || 'MEMBRO';
+const userId = (session?.user as any)?.id;
+
+let availableCells: any[] = [];
+if (userRole === 'ADMIN' || userRole === 'COORDENADOR') {
+  availableCells = await prisma.cell.findMany({ orderBy: { name: 'asc' } });
+} else if (userRole === 'LIDER' || userRole === 'LIDER_TREINAMENTO') {
+  availableCells = await prisma.cell.findMany({ where: { leaderId: userId }, orderBy: { name: 'asc' } });
+}
+
+const tabs = [
+  { id: 'geral', label: 'Board Geral', icon: LayoutDashboard, href: `/relatorios${filterParams}` },
+  { id: 'frequencia', label: 'Engajamento', icon: Activity, href: `/relatorios/frequencia${filterParams}` },
+  { id: 'perfil', label: 'Perfil de Membros', icon: Users, href: `/relatorios/perfil${filterParams}` }
+];
+---
+
+<AppLayout title={title}>
+  <div class="space-y-6">
+    <header class="flex items-center gap-4">
+      <a href="/" class="w-10 h-10 rounded-xl bg-white shadow-sm border border-gray-100 flex items-center justify-center text-gray-500 hover:text-brand-primary transition-colors">
+        <ChevronLeft size={20} />
+      </a>
+      <div class="flex-1">
+        <h1 class="text-2xl font-bold text-brand-dark">Painel de Relatórios</h1>
+        <p class="text-[11px] text-gray-400 font-bold uppercase tracking-wider">Visão Executiva</p>
+      </div>
+      <a href="/relatorios/avisos" class="flex items-center gap-2 bg-white px-4 py-2 rounded-xl border border-gray-100 text-gray-500 hover:text-brand-primary transition-all text-xs font-bold">
+        <Megaphone size={14} />
+        Avisos
+      </a>
+    </header>
+
+    <!-- Tabs Navegação -->
+    <div class="flex overflow-x-auto hide-scrollbar gap-2 pb-1">
+      {tabs.map(tab => {
+        const Icon = tab.icon;
+        const isActive = activeTab === tab.id;
+        return (
+          <a 
+            href={tab.href}
+            class={`flex items-center gap-2 px-4 py-3 rounded-2xl whitespace-nowrap font-medium text-sm transition-all ${
+              isActive 
+                ? 'bg-brand-primary text-white shadow-lg shadow-brand-primary/30' 
+                : 'bg-white text-gray-500 border border-gray-100 hover:border-brand-primary/50'
+            }`}
+          >
+            <Icon size={16} />
+            {tab.label}
+          </a>
+        );
+      })}
+    </div>
+
+    <!-- Filtros de Data -->
+    <form method="GET" class="bg-white p-4 rounded-3xl border border-gray-100 shadow-sm flex flex-wrap items-end gap-4">
+      <div class="flex-1 min-w-[140px] space-y-1">
+        <label class="text-[10px] font-bold text-gray-400 uppercase ml-1">Período De</label>
+        <input type="date" name="startDate" value={startDate} class="w-full px-4 py-2.5 rounded-xl border border-gray-50 bg-gray-50/50 text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary/20" />
+      </div>
+      <div class="flex-1 min-w-[140px] space-y-1">
+        <label class="text-[10px] font-bold text-gray-400 uppercase ml-1">Até</label>
+        <input type="date" name="endDate" value={endDate} class="w-full px-4 py-2.5 rounded-xl border border-gray-50 bg-gray-50/50 text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary/20" />
+      </div>
+      <div class="flex-1 min-w-[160px] space-y-1">
+        <label class="text-[10px] font-bold text-gray-400 uppercase ml-1">Célula</label>
+        <select name="cellId" class="w-full px-4 py-2.5 rounded-xl border border-gray-50 bg-gray-50/50 text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary/20 appearance-none truncate">
+          <option value="">Todas as Células</option>
+          {availableCells.map(c => (
+            <option value={c.id} selected={c.id === cellId}>{c.name}</option>
+          ))}
+        </select>
+      </div>
+      <button type="submit" class="px-6 py-2.5 bg-brand-primary text-white rounded-xl font-bold text-sm hover:brightness-110 transition-all shadow-md shadow-brand-primary/20 h-[42px]">
+        Filtrar
+      </button>
+      {(startDate || endDate || cellId) && (
+        <a href={Astro.url.pathname} class="px-4 py-2.5 text-gray-400 text-xs font-medium hover:text-brand-primary">Limpar</a>
+      )}
+    </form>
+
+    <!-- Conteúdo do Relatório -->
+    <div class="space-y-6 pb-20">
+      <slot />
+    </div>
+  </div>
+</AppLayout>
+
+<style>
+  .hide-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .hide-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+</style>
+

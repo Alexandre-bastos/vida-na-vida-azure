@@ -1,0 +1,193 @@
+---
+import AppLayout from '../../layouts/AppLayout.astro';
+import { ChevronLeft, Save, Users, MapPin, Clock, Calendar } from 'lucide-react';
+import { getSession } from 'auth-astro/server';
+import prisma from '../../lib/prisma';
+
+const session = await getSession(Astro.request);
+if (!session) return Astro.redirect('/login');
+
+const userRole = (session.user as any)?.role || 'MEMBRO';
+if (!(userRole === 'ADMIN' || userRole === 'COORDENADOR')) return Astro.redirect('/celulas');
+
+// Buscar possíveis líderes (Usuários com roles de liderança ou que não lideram nenhuma célula ainda)
+const potentialLeaders = await prisma.user.findMany({
+  where: {
+    role: { in: ['LIDER', 'LIDER_TREINAMENTO', 'COORDENADOR', 'ADMIN'] },
+    ledCell: null // Só quem não lidera ninguém ainda
+  },
+  orderBy: { name: 'asc' }
+});
+
+let error = '';
+
+if (Astro.request.method === 'POST') {
+  try {
+    const formData = await Astro.request.formData();
+    const name = formData.get('name')?.toString();
+    const address = formData.get('address')?.toString();
+    const neighborhood = formData.get('neighborhood')?.toString();
+    const dayOfWeek = formData.get('dayOfWeek')?.toString();
+    const time = formData.get('time')?.toString();
+    const leaderId = formData.get('leaderId')?.toString();
+
+    if (!name) {
+      error = 'O nome da célula é obrigatório.';
+    } else {
+      await prisma.cell.create({
+        data: {
+          name,
+          address,
+          neighborhood: neighborhood || null,
+          dayOfWeek: dayOfWeek ? parseInt(dayOfWeek) : null,
+          time,
+          leaderId: leaderId || null,
+        }
+      });
+      return Astro.redirect('/celulas');
+    }
+  } catch (e) {
+    console.error(e);
+    error = 'Ocorreu um erro ao salvar a célula.';
+  }
+}
+---
+
+<AppLayout title="Nova Célula">
+	<div class="space-y-6">
+		<header class="flex items-center gap-4">
+			<a href="/celulas" class="w-10 h-10 rounded-xl bg-white shadow-sm border border-gray-100 flex items-center justify-center text-gray-500 hover:text-brand-primary transition-colors">
+				<ChevronLeft size={20} />
+			</a>
+			<div>
+				<h1 class="text-xl font-bold text-brand-dark">Nova Célula</h1>
+				<p class="text-[11px] text-gray-400 font-bold uppercase tracking-wider">Cadastro Geral</p>
+			</div>
+		</header>
+
+		{error && (
+			<div class="bg-red-50 text-red-500 p-4 rounded-2xl text-sm font-medium border border-red-100 animate-shake">
+				{error}
+			</div>
+		)}
+
+		<form method="POST" class="space-y-6 pb-20">
+			<!-- Seção: Identificação -->
+			<div class="bg-white p-6 rounded-[2rem] shadow-sm border border-gray-100 space-y-4">
+				<div class="flex items-center gap-2 mb-2">
+					<div class="w-8 h-8 rounded-lg bg-blue-50 text-brand-primary flex items-center justify-center">
+						<Users size={16} />
+					</div>
+					<h2 class="font-bold text-brand-dark">Identificação</h2>
+				</div>
+
+				<div class="space-y-1.5">
+					<label for="name" class="text-[11px] font-bold text-gray-400 uppercase tracking-wider ml-1">Nome da Célula</label>
+					<input 
+						type="text" 
+						id="name" 
+						name="name" 
+						required 
+						placeholder="Ex: Célula Multiplicação" 
+						class="w-full px-5 py-4 rounded-2xl border border-gray-100 bg-gray-50/50 focus:bg-white focus:ring-4 focus:ring-brand-primary/10 focus:border-brand-primary focus:outline-none transition-all text-sm" 
+					/>
+				</div>
+
+				<div class="space-y-1.5">
+					<label for="leaderId" class="text-[11px] font-bold text-gray-400 uppercase tracking-wider ml-1">Líder Responsável</label>
+					<select 
+						id="leaderId" 
+						name="leaderId" 
+						class="w-full px-5 py-4 rounded-2xl border border-gray-100 bg-gray-50/50 focus:bg-white focus:ring-4 focus:ring-brand-primary/10 focus:border-brand-primary focus:outline-none transition-all text-sm appearance-none"
+					>
+						<option value="">Selecione um líder (Opcional)</option>
+						{potentialLeaders.map(leader => (
+							<option value={leader.id}>{leader.name}</option>
+						))}
+					</select>
+				</div>
+			</div>
+
+			<!-- Seção: Logística -->
+			<div class="bg-white p-6 rounded-[2rem] shadow-sm border border-gray-100 space-y-4">
+				<div class="flex items-center gap-2 mb-2">
+					<div class="w-8 h-8 rounded-lg bg-amber-50 text-brand-accent flex items-center justify-center">
+						<MapPin size={16} />
+					</div>
+					<h2 class="font-bold text-brand-dark">Local e Horário</h2>
+				</div>
+
+				<div class="space-y-1.5">
+					<label for="address" class="text-[11px] font-bold text-gray-400 uppercase tracking-wider ml-1">Endereço / Local</label>
+					<input 
+						type="text" 
+						id="address" 
+						name="address" 
+						placeholder="Ex: Rua das Flores, 123" 
+						class="w-full px-5 py-4 rounded-2xl border border-gray-100 bg-gray-50/50 focus:bg-white focus:ring-4 focus:ring-brand-primary/10 focus:border-brand-primary focus:outline-none transition-all text-sm" 
+					/>
+				</div>
+
+				<div class="space-y-1.5">
+					<label for="neighborhood" class="text-[11px] font-bold text-gray-400 uppercase tracking-wider ml-1">Bairro (Opcional)</label>
+					<input 
+						type="text" 
+						id="neighborhood" 
+						name="neighborhood" 
+						placeholder="Ex: Centro" 
+						class="w-full px-5 py-4 rounded-2xl border border-gray-100 bg-gray-50/50 focus:bg-white focus:ring-4 focus:ring-brand-primary/10 focus:border-brand-primary focus:outline-none transition-all text-sm" 
+					/>
+				</div>
+
+				<div class="grid grid-cols-2 gap-4">
+					<div class="space-y-1.5">
+						<label for="dayOfWeek" class="text-[11px] font-bold text-gray-400 uppercase tracking-wider ml-1">Dia da Semana</label>
+						<select 
+							id="dayOfWeek" 
+							name="dayOfWeek" 
+							class="w-full px-5 py-4 rounded-2xl border border-gray-100 bg-gray-50/50 focus:bg-white focus:ring-4 focus:ring-brand-primary/10 focus:border-brand-primary focus:outline-none transition-all text-sm appearance-none"
+						>
+							<option value="">Selecione</option>
+							<option value="0">Domingo</option>
+							<option value="1">Segunda-feira</option>
+							<option value="2">Terça-feira</option>
+							<option value="3">Quarta-feira</option>
+							<option value="4">Quinta-feira</option>
+							<option value="5">Sexta-feira</option>
+							<option value="6">Sábado</option>
+						</select>
+					</div>
+					<div class="space-y-1.5">
+						<label for="time" class="text-[11px] font-bold text-gray-400 uppercase tracking-wider ml-1">Horário</label>
+						<input 
+							type="time" 
+							id="time" 
+							name="time" 
+							class="w-full px-5 py-4 rounded-2xl border border-gray-100 bg-gray-50/50 focus:bg-white focus:ring-4 focus:ring-brand-primary/10 focus:border-brand-primary focus:outline-none transition-all text-sm" 
+						/>
+					</div>
+				</div>
+			</div>
+
+			<!-- Botão Salvar (Fixo no rodapé mobile style) -->
+			<div class="fixed bottom-24 md:bottom-6 left-0 w-full px-6 flex justify-center z-20">
+				<button type="submit" class="w-full max-w-sm bg-brand-primary text-white font-bold py-4 rounded-2xl shadow-xl shadow-brand-primary/30 flex items-center justify-center gap-3 hover:brightness-110 transition-all active:scale-95">
+					<Save size={20} />
+					Salvar Célula
+				</button>
+			</div>
+		</form>
+	</div>
+</AppLayout>
+
+<style>
+	@keyframes shake {
+		0%, 100% { transform: translateX(0); }
+		25% { transform: translateX(-5px); }
+		75% { transform: translateX(5px); }
+	}
+	.animate-shake {
+		animation: shake 0.2s ease-in-out 0s 2;
+	}
+</style>
+
