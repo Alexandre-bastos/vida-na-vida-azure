@@ -50,7 +50,7 @@ model cellmembership {
   roleAtTime String                    @default("MEMBRO")
   userId     String
   cellId     String
-  cell       cell                      @relation(fields: [cellId], references: [id], onDelete: Cascade, map: "CellMembership_cellId_fkey")
+  cell       cell                      @relation(fields: [cellId], references: [id], onDelete: NoAction, map: "CellMembership_cellId_fkey")
   user       user                      @relation(fields: [userId], references: [id], onDelete: NoAction, map: "CellMembership_userId_fkey")
 
   @@index([cellId], map: "CellMembership_cellId_fkey")
@@ -66,7 +66,7 @@ model meeting {
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
   cellId    String
-  cell      cell       @relation(fields: [cellId], references: [id], onDelete: Cascade, map: "Meeting_cellId_fkey")
+  cell      cell       @relation(fields: [cellId], references: [id], onDelete: NoAction, map: "Meeting_cellId_fkey")
   presences presence[]
   visitors  visitor[]
 
@@ -89,7 +89,7 @@ model presence {
   observations String?
   meetingId    String
   userId       String
-  meeting      meeting @relation(fields: [meetingId], references: [id], onDelete: Cascade, map: "Presence_meetingId_fkey")
+  meeting      meeting @relation(fields: [meetingId], references: [id], onDelete: NoAction, map: "Presence_meetingId_fkey")
   user         user    @relation(fields: [userId], references: [id], onDelete: NoAction, map: "Presence_userId_fkey")
 
   @@unique([meetingId, userId], map: "Presence_meetingId_userId_key")
