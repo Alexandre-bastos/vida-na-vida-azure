@@ -47,11 +47,11 @@ model cellmembership {
   id         String                    @id @default(uuid())
   startDate  DateTime                  @default(now())
   endDate    DateTime?
-  roleAtTime cellmembership_roleAtTime @default(MEMBRO)
+  roleAtTime String                    @default("MEMBRO")
   userId     String
   cellId     String
   cell       cell                      @relation(fields: [cellId], references: [id], onDelete: Cascade, map: "CellMembership_cellId_fkey")
-  user       user                      @relation(fields: [userId], references: [id], onDelete: Cascade, map: "CellMembership_userId_fkey")
+  user       user                      @relation(fields: [userId], references: [id], onDelete: NoAction, map: "CellMembership_userId_fkey")
 
   @@index([cellId], map: "CellMembership_cellId_fkey")
   @@index([userId], map: "CellMembership_userId_fkey")
@@ -90,7 +90,7 @@ model presence {
   meetingId    String
   userId       String
   meeting      meeting @relation(fields: [meetingId], references: [id], onDelete: Cascade, map: "Presence_meetingId_fkey")
-  user         user    @relation(fields: [userId], references: [id], onDelete: Cascade, map: "Presence_userId_fkey")
+  user         user    @relation(fields: [userId], references: [id], onDelete: NoAction, map: "Presence_userId_fkey")
 
   @@unique([meetingId, userId], map: "Presence_meetingId_userId_key")
   @@index([userId], map: "Presence_userId_fkey")
@@ -113,7 +113,7 @@ model user {
   emailVerified   DateTime?
   image           String?
   password        String?
-  role            user_role        @default(MEMBRO)
+  role            String           @default("MEMBRO")
   active          Boolean          @default(true)
   phone           String?
   birthDate       DateTime?
@@ -147,30 +147,18 @@ model visitor {
   invitedById  String?
   cellId       String?
   meetingId    String?
-  cell         cell?    @relation(fields: [cellId], references: [id], map: "Visitor_cellId_fkey")
-  invitedBy    user?    @relation("VisitorInviter", fields: [invitedById], references: [id], map: "Visitor_invitedById_fkey")
-  meeting      meeting? @relation(fields: [meetingId], references: [id], map: "Visitor_meetingId_fkey")
+  cell         cell?    @relation(fields: [cellId], references: [id], onDelete: NoAction, map: "Visitor_cellId_fkey")
+  invitedBy    user?    @relation("VisitorInviter", fields: [invitedById], references: [id], onDelete: NoAction, map: "Visitor_invitedById_fkey")
+  meeting      meeting? @relation(fields: [meetingId], references: [id], onDelete: NoAction, map: "Visitor_meetingId_fkey")
 
   @@index([cellId], map: "Visitor_cellId_fkey")
   @@index([invitedById], map: "Visitor_invitedById_fkey")
   @@index([meetingId], map: "Visitor_meetingId_fkey")
 }
 
-enum cellmembership_roleAtTime {
-  ADMIN
-  COORDENADOR
-  LIDER
-  LIDER_TREINAMENTO
-  MEMBRO
-}
 
-enum user_role {
-  ADMIN
-  COORDENADOR
-  LIDER
-  LIDER_TREINAMENTO
-  MEMBRO
-}
+// Enums removidos pois SQL Server não suporta via Prisma Connector
+// Os campos foram alterados para String
 
 model lesson {
   id        String   @id @default(uuid())
