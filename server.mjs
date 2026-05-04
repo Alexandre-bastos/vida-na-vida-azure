@@ -12,10 +12,12 @@ app.use((req, res, next) => {
   
   // Forçar Origin e Referer a usarem HTTPS se estivermos atrás do proxy da Azure
   if (req.headers['x-forwarded-proto'] === 'https') {
-    if (req.headers.origin) {
-      req.headers.origin = req.headers.origin.replace('http:', 'https:');
+    const secureOrigin = `https://${host}`;
+    
+    if (!req.headers.origin || req.headers.origin.startsWith('http:')) {
+      req.headers.origin = secureOrigin;
     }
-    if (req.headers.referer) {
+    if (req.headers.referer && req.headers.referer.startsWith('http:')) {
       req.headers.referer = req.headers.referer.replace('http:', 'https:');
     }
   }
