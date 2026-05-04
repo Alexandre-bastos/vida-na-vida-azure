@@ -7,9 +7,9 @@ const port = process.env.PORT || 8080;
 
 // Middleware para normalização e LOGS PROFUNDOS na Azure
 app.use((req, res, next) => {
-  if (req.headers['x-original-host']) {
-    req.headers.host = req.headers['x-original-host'];
-  }
+  // Garantir que o Host seja sempre o domínio customizado se disponível
+  const host = req.headers['x-original-host'] || req.headers['x-forwarded-host'] || req.headers.host;
+  req.headers.host = host;
   
   if (req.url.includes('/api/auth')) {
     console.log('--- DEBUG AUTH START ---');
