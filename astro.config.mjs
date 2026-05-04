@@ -17,4 +17,7 @@ export default defineConfig({
     mode: 'middleware'
   }),
   output: 'server',
+  security: {
+    checkOrigin: false
+  }
 });
