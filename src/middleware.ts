@@ -20,8 +20,8 @@ export const onRequest = defineMiddleware(async ({ request, locals }, next) => {
     duplex: 'half'
   } as any);
 
-  // Rotas públicas — não precisam de autenticação
-  const publicPaths = ["/login", "/definir-senha", "/manual", "/images", "/styles", "/favicon.ico", "/public", "/_astro", "/uploads"];
+  // Rotas públicas — não precisam de verificação de sessão
+  const publicPaths = ["/api/auth", "/login", "/definir-senha", "/manual", "/images", "/styles", "/favicon.ico", "/public", "/_astro", "/uploads"];
   if (publicPaths.some((p) => url.pathname.startsWith(p))) {
     return next();
   }
