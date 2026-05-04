@@ -1,7 +1,7 @@
 import { verifySessionToken } from "./lib/auth-manual";
 import { defineMiddleware } from "astro:middleware";
 
-export const onRequest = defineMiddleware(async ({ request, locals }, next) => {
+export const onRequest = defineMiddleware(async ({ request, locals, cookies }, next) => {
   const url = new URL(request.url);
 
   // Rotas públicas — não precisam de verificação de sessão
