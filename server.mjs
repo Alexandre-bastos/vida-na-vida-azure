@@ -5,6 +5,14 @@ const app = express();
 app.set('trust proxy', true);
 const port = process.env.PORT || 8080;
 
+// Middleware para normalização na Azure (Essencial para POST/CSRF do Astro)
+app.use((req, res, next) => {
+  req.headers['x-forwarded-proto'] = 'https';
+  req.headers['x-forwarded-host'] = 'comunidadevidanavida.com.br';
+  req.headers.host = 'comunidadevidanavida.com.br';
+  next();
+});
+
 // Servir arquivos estáticos do diretório dist/client
 app.use(express.static('dist/client'));
 
