@@ -10,8 +10,8 @@ const { id } = Astro.params;
 
 // Buscar dados da célula e membros atuais
 // Construir filtro de acesso similar ao da lista de células
-const userId = (session.user as any)?.id;
-const userRole = (session.user as any)?.role || 'MEMBRO';
+const userId = (user as any)?.id;
+const userRole = (user as any)?.role || 'MEMBRO';
 const isAdmin = userRole === 'ADMIN';
 const isCoordinator = userRole === 'COORDENADOR';
 const isLeader = userRole === 'LIDER' || userRole === 'LIDER_TREINAMENTO';

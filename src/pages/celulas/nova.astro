@@ -5,7 +5,8 @@ import { ChevronLeft, Save, Users, MapPin, Clock, Calendar } from 'lucide-react'
 import prisma from '../../lib/prisma';
 
 const user = Astro.locals.user;
-if (!session) return Astro.redirect('/login');
+const user = Astro.locals.user;
+if (!user) return Astro.redirect('/login');
 
 const userRole = (user as any)?.role || 'MEMBRO';
 if (!(userRole === 'ADMIN' || userRole === 'COORDENADOR')) return Astro.redirect('/celulas');

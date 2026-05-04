@@ -5,7 +5,7 @@ import { ChevronLeft, Camera } from 'lucide-react';
 import prisma from '../../lib/prisma';
 import { uploadFile } from '../../lib/storage';
 
-let session = await getSession(Astro.request);
+const user = Astro.locals.user;
 if (!user) {
   return Astro.redirect('/login');
 }

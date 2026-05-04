@@ -8,8 +8,9 @@ import bcrypt from 'bcryptjs';
 
 
 const user = Astro.locals.user;
-if (!session) return Astro.redirect('/login');
+if (!user) return Astro.redirect('/login');
 
+const userId = (user as any)?.id;
 const userRole = (user as any)?.role || 'MEMBRO';
 const isAdmin = userRole === 'ADMIN';
 const isCoordinator = userRole === 'COORDENADOR';

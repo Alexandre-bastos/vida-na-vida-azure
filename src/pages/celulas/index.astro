@@ -5,7 +5,7 @@ import { Users, Plus, MapPin, Calendar as CalendarIcon, ArrowRight } from 'lucid
 import prisma from '../../lib/prisma';
 
 const user = Astro.locals.user;
-if (!session) return Astro.redirect('/login');
+if (!user) return Astro.redirect('/login');
 
 // Definir permissões de visualização
 const userId = (user as any)?.id;
