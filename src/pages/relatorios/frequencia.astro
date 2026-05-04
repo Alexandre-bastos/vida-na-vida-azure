@@ -6,7 +6,6 @@ import SimpleLineChart from '../../components/charts/SimpleLineChart';
 import { Calendar as CalendarIcon, MessageSquare } from 'lucide-react';
 
 const user = Astro.locals.user;
-const user = Astro.locals.user;
 if (!user) return Astro.redirect('/login');
 
 const userRole = (user as any)?.role;

@@ -6,7 +6,6 @@ import { uploadFile } from '../../../lib/storage';
 import { ChevronLeft, Megaphone, Camera } from 'lucide-react';
 
 const user = Astro.locals.user;
-const user = Astro.locals.user;
 if (!user) return Astro.redirect('/login');
 
 const userRole = (user as any)?.role;

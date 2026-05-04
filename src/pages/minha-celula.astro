@@ -4,7 +4,6 @@ import prisma from '../lib/prisma';
 
 
 const user = Astro.locals.user;
-const user = Astro.locals.user;
 if (!user) return Astro.redirect('/login');
 
 const userId = user?.id;
