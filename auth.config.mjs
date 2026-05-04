@@ -70,6 +70,17 @@ export default defineConfig({
   session: {
     strategy: "jwt"
   },
+  cookies: {
+    sessionToken: {
+      name: `__Secure-authjs.session-token`,
+      options: {
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+        secure: true,
+      },
+    },
+  },
   secret: process.env.AUTH_SECRET,
   debug: true
 });

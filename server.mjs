@@ -10,9 +10,17 @@ app.use((req, res, next) => {
   const protocol = req.headers['x-forwarded-proto'] || req.protocol;
   const host = req.headers['x-forwarded-host'] || req.get('host');
   
-  // Log para debug no console da Azure
+  // Forçar Origin e Referer a usarem HTTPS se estivermos atrás do proxy da Azure
+  if (req.headers['x-forwarded-proto'] === 'https') {
+    if (req.headers.origin) {
+      req.headers.origin = req.headers.origin.replace('http:', 'https:');
+    }
+    if (req.headers.referer) {
+      req.headers.referer = req.headers.referer.replace('http:', 'https:');
+    }
+  }
+
   console.log(`[ROUTE DEBUG] ${req.method} ${req.url} (Proto: ${protocol})`);
-  
   next();
 });
 
