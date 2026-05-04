@@ -1,13 +1,13 @@
 ---
 import AppLayout from '../layouts/AppLayout.astro';
 import prisma from '../lib/prisma';
-import { getSession } from 'auth-astro/server';
 
-const session = await getSession(Astro.request);
+
+const user = Astro.locals.user;
 if (!session) return Astro.redirect('/login');
 
-const userId = session.user?.id;
-const userRole = session.user?.role;
+const userId = user?.id;
+const userRole = user?.role;
 
 if (!userRole) {
   return new Response(null, { status: 302, headers: { location: '/login' } });

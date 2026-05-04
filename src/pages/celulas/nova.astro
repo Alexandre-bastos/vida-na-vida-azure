@@ -1,13 +1,13 @@
 ---
 import AppLayout from '../../layouts/AppLayout.astro';
 import { ChevronLeft, Save, Users, MapPin, Clock, Calendar } from 'lucide-react';
-import { getSession } from 'auth-astro/server';
+
 import prisma from '../../lib/prisma';
 
-const session = await getSession(Astro.request);
+const user = Astro.locals.user;
 if (!session) return Astro.redirect('/login');
 
-const userRole = (session.user as any)?.role || 'MEMBRO';
+const userRole = (user as any)?.role || 'MEMBRO';
 if (!(userRole === 'ADMIN' || userRole === 'COORDENADOR')) return Astro.redirect('/celulas');
 
 // Buscar possíveis líderes (Usuários com roles de liderança ou que não lideram nenhuma célula ainda)

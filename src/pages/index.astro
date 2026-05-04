@@ -1,16 +1,15 @@
 ---
 import AppLayout from '../layouts/AppLayout.astro';
 import { Calendar, Users, Megaphone, ArrowRight, UserPlus, BookOpen, Download } from 'lucide-react';
-import { getSession } from 'auth-astro/server';
 
 import prisma from '../lib/prisma';
 
-const session = await getSession(Astro.request);
-if (!session) return Astro.redirect('/login');
+const user = Astro.locals.user;
+if (!user) return Astro.redirect('/login');
 
-const firstName = session?.user?.name?.split(' ')[0] || 'Líder';
-const userId = (session?.user as any)?.id;
-const userRole = ((session?.user as any)?.role || 'MEMBRO').toUpperCase();
+const firstName = user?.name?.split(' ')[0] || 'Líder';
+const userId = (user as any)?.id;
+const userRole = ((user as any)?.role || 'MEMBRO').toUpperCase();
 const isAdmin = userRole === 'ADMIN';
 const isCoordinator = userRole === 'COORDENADOR';
 const isLider = userRole.startsWith('LIDER');

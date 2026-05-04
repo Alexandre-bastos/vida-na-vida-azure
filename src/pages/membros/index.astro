@@ -1,14 +1,14 @@
 ---
 import AppLayout from '../../layouts/AppLayout.astro';
 import { UserPlus, Search, Phone, Mail, Shield, ChevronRight } from 'lucide-react';
-import { getSession } from 'auth-astro/server';
+
 import prisma from '../../lib/prisma';
 
-const session = await getSession(Astro.request);
-if (!session) return Astro.redirect('/login');
+const user = Astro.locals.user;
+if (!user) return Astro.redirect('/login');
 
-const userId = (session.user as any)?.id;
-const userRole = ((session.user as any)?.role || 'MEMBRO').toUpperCase();
+const userId = (user as any)?.id;
+const userRole = ((user as any)?.role || 'MEMBRO').toUpperCase();
 if (userRole === 'MEMBRO') return Astro.redirect('/');
 
 const isAdmin = userRole === 'ADMIN';

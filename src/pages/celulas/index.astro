@@ -1,15 +1,15 @@
 ---
 import AppLayout from '../../layouts/AppLayout.astro';
 import { Users, Plus, MapPin, Calendar as CalendarIcon, ArrowRight } from 'lucide-react';
-import { getSession } from 'auth-astro/server';
+
 import prisma from '../../lib/prisma';
 
-const session = await getSession(Astro.request);
+const user = Astro.locals.user;
 if (!session) return Astro.redirect('/login');
 
 // Definir permissões de visualização
-const userId = (session.user as any)?.id;
-const userRole = ((session.user as any)?.role || 'MEMBRO').toUpperCase();
+const userId = (user as any)?.id;
+const userRole = ((user as any)?.role || 'MEMBRO').toUpperCase();
 const isAdmin = userRole === 'ADMIN';
 const isCoordinator = userRole === 'COORDENADOR';
 

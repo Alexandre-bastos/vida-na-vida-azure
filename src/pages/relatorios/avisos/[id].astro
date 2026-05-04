@@ -1,15 +1,14 @@
 ---
 import ReportLayout from '../../../layouts/ReportLayout.astro';
-import { getSession } from 'auth-astro/server';
 import prisma from '../../../lib/prisma';
 import { uploadFile } from '../../../lib/storage';
 import { ChevronLeft, Save, Camera } from 'lucide-react';
 
 
-const session = await getSession(Astro.request);
-if (!session) return Astro.redirect('/login');
+const user = Astro.locals.user;
+if (!user) return Astro.redirect('/login');
 
-const userRole = (session.user as any)?.role;
+const userRole = (user as any)?.role;
 if (userRole !== 'ADMIN' && userRole !== 'COORDENADOR') {
   return Astro.redirect('/');
 }

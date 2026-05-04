@@ -1,11 +1,10 @@
 ---
 import AppLayout from '../../layouts/AppLayout.astro';
 import { ChevronLeft, Edit, Calendar, MapPin, Users } from 'lucide-react';
-import { getSession } from 'auth-astro/server';
 import prisma from '../../lib/prisma';
 
-let session = await getSession(Astro.request);
-if (!session?.user) {
+const user = Astro.locals.user;
+if (!user) {
   return Astro.redirect('/login');
 }
 

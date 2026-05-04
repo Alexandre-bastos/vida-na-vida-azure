@@ -1,7 +1,7 @@
 ---
 import AppLayout from './AppLayout.astro';
 import { LayoutDashboard, Activity, Users, ChevronLeft, Megaphone } from 'lucide-react';
-import { getSession } from 'auth-astro/server';
+
 import prisma from '../lib/prisma';
 
 interface Props {
@@ -19,9 +19,9 @@ const cellId = url.searchParams.get('cellId') || '';
 const filterParams = `?startDate=${startDate}&endDate=${endDate}&cellId=${cellId}`;
 
 // Fetch available cells for the filter
-const session = await getSession(Astro.request);
-const userRole = (session?.user as any)?.role || 'MEMBRO';
-const userId = (session?.user as any)?.id;
+const user = Astro.locals.user;
+const userRole = (user as any)?.role || 'MEMBRO';
+const userId = (user as any)?.id;
 
 let availableCells: any[] = [];
 if (userRole === 'ADMIN' || userRole === 'COORDENADOR') {

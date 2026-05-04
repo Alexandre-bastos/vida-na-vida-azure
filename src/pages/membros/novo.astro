@@ -1,16 +1,16 @@
 ---
 import AppLayout from '../../layouts/AppLayout.astro';
 import { ChevronLeft, Save, User, Mail, Phone, Shield, Calendar, Send } from 'lucide-react';
-import { getSession } from 'auth-astro/server';
+
 import prisma from '../../lib/prisma';
 import { sendInviteEmail } from '../../lib/mail';
 import bcrypt from 'bcryptjs';
 
 
-const session = await getSession(Astro.request);
+const user = Astro.locals.user;
 if (!session) return Astro.redirect('/login');
 
-const userRole = (session.user as any)?.role || 'MEMBRO';
+const userRole = (user as any)?.role || 'MEMBRO';
 const isAdmin = userRole === 'ADMIN';
 const isCoordinator = userRole === 'COORDENADOR';
 const isLider = userRole === 'LIDER' || userRole === 'LIDER_TREINAMENTO';

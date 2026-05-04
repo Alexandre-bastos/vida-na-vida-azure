@@ -1,15 +1,15 @@
 ---
 import AppLayout from '../layouts/AppLayout.astro';
-import { getSession } from 'auth-astro/server';
+
 import prisma from '../lib/prisma';
 import { uploadFile } from '../lib/storage';
 import { Camera, Save, MapPin, User as UserIcon, CheckCircle, Shield, Phone } from 'lucide-react';
 import bcrypt from 'bcryptjs';
 
-const session = await getSession(Astro.request);
+const user = Astro.locals.user;
 if (!session) return Astro.redirect('/login');
 
-const userId = (session.user as any)?.id;
+const userId = (user as any)?.id;
 const user = await prisma.user.findUnique({
   where: { id: userId },
   include: {

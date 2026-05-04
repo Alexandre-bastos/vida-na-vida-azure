@@ -1,9 +1,9 @@
 ---
 import { Home, Users, CalendarCheck, UserCircle, UserPlus, BarChart2, BookOpen } from 'lucide-react';
-import { getSession } from 'auth-astro/server';
 
-const session = await getSession(Astro.request);
-const userRole = ((session?.user as any)?.role || 'MEMBRO').toUpperCase();
+
+const user = Astro.locals.user;
+const userRole = ((user as any)?.role || 'MEMBRO').toUpperCase();
 const isAdmin = userRole === 'ADMIN';
 const isCoordinator = userRole === 'COORDENADOR';
 const isLider = userRole.startsWith('LIDER');

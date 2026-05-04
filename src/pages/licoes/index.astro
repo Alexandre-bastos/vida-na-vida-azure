@@ -1,13 +1,13 @@
 ---
 import AppLayout from '../../layouts/AppLayout.astro';
-import { getSession } from 'auth-astro/server';
+
 import prisma from '../../lib/prisma';
 import { BookOpen, Plus, FileText, CheckCircle, Clock } from 'lucide-react';
 
-const session = await getSession(Astro.request);
+const user = Astro.locals.user;
 if (!session) return Astro.redirect('/login');
 
-const userRole = (session.user as any)?.role;
+const userRole = (user as any)?.role;
 if (userRole !== 'ADMIN' && userRole !== 'COORDENADOR') {
   return Astro.redirect('/');
 }
