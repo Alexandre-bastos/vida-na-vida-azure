@@ -72,7 +72,7 @@ export default defineConfig({
   },
   cookies: {
     sessionToken: {
-      name: `__Secure-authjs.session-token`,
+      name: `authjs.session-token`,
       options: {
         httpOnly: true,
         sameSite: "lax",
@@ -81,7 +81,7 @@ export default defineConfig({
       },
     },
     callbackUrl: {
-      name: `__Secure-authjs.callback-url`,
+      name: `authjs.callback-url`,
       options: {
         httpOnly: true,
         sameSite: "lax",
@@ -90,7 +90,7 @@ export default defineConfig({
       },
     },
     csrfToken: {
-      name: `__Host-authjs.csrf-token`,
+      name: `authjs.csrf-token`,
       options: {
         httpOnly: true,
         sameSite: "lax",
@@ -99,6 +99,6 @@ export default defineConfig({
       },
     },
   },
-  secret: process.env.AUTH_SECRET,
+  secret: process.env.AUTH_SECRET || "uma-chave-de-backup-muito-segura-123",
   debug: true
 });
