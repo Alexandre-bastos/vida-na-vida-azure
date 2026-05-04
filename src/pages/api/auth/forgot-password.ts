@@ -1,5 +1,6 @@
 import type { APIRoute } from 'astro';
 import prisma from '../../../lib/prisma';
+import { randomUUID } from 'node:crypto';
 import { sendResetPasswordEmail } from '../../../lib/mail';
 
 export const POST: APIRoute = async ({ request }) => {
@@ -22,7 +23,7 @@ export const POST: APIRoute = async ({ request }) => {
     }
 
     // 2. Gerar Token Único
-    const token = crypto.randomUUID();
+    const token = randomUUID();
     const expires = new Date(Date.now() + 3600000); // 1 hora de validade
 
     // 3. Salvar Token no Banco (ou atualizar se já existir para este e-mail)
