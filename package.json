@@ -25,6 +25,7 @@
     "bcryptjs": "^3.0.3",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
+    "jose": "^6.2.3",
     "lucide-react": "^1.8.0",
     "node-vibrant": "^4.0.4",
     "prisma": "^5.22.0",
