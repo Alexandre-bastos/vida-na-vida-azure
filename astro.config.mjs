@@ -2,10 +2,7 @@
 import { defineConfig } from 'astro/config';
 import tailwindcss from '@tailwindcss/vite';
 import react from '@astrojs/react';
-import auth from 'auth-astro';
 import node from '@astrojs/node';
-
-
 
 // https://astro.build/config
 export default defineConfig({
@@ -15,7 +12,7 @@ export default defineConfig({
       external: ['@prisma/client', '.prisma']
     }
   },
-  integrations: [react(), auth()],
+  integrations: [react()],
   adapter: node({
     mode: 'middleware'
   }),
