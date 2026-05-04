@@ -1,30 +1,47 @@
-import fs from 'node:fs';
-import path from 'node:path';
+import { BlobServiceClient } from '@azure/storage-blob';
 
 /**
- * Utilitário de armazenamento agnóstico.
- * No ambiente Azure/Linux, salva arquivos localmente na pasta public/uploads.
+ * Utilitário de armazenamento para Azure Blob Storage.
+ * Organiza arquivos em containers e pastas.
  */
 export async function uploadFile(file: File, folder: string): Promise<string> {
-  const buffer = Buffer.from(await file.arrayBuffer());
-  const fileName = `${Date.now()}-${file.name.replace(/\s+/g, '-')}`;
-  
-  // Caminho relativo para a URL (como o navegador verá)
-  const relativePath = `/uploads/${folder}/${fileName}`;
-  
-  // Caminho absoluto para salvar o arquivo no disco
-  // Em produção na Azure, a pasta public pode estar em dist/client/public ou similar
-  // Mas para o build do Astro, salvamos na pasta public da raiz
-  const uploadDir = path.join(process.cwd(), 'public', 'uploads', folder);
-  
-  if (!fs.existsSync(uploadDir)) {
-    fs.mkdirSync(uploadDir, { recursive: true });
+  const connectionString = process.env.AZURE_STORAGE_CONNECTION_STRING;
+
+  // Fallback para log se a connection string não estiver configurada
+  if (!connectionString) {
+    console.error("[STORAGE] AZURE_STORAGE_CONNECTION_STRING não configurada!");
+    // No ambiente local, poderíamos salvar no disco, mas para Azure/Produção precisamos do Blob.
+    throw new Error("Configuração de armazenamento ausente (AZURE_STORAGE_CONNECTION_STRING)");
   }
-  
-  const absolutePath = path.join(uploadDir, fileName);
-  fs.writeFileSync(absolutePath, buffer);
-  
-  console.log(`[STORAGE] Arquivo salvo em: ${absolutePath}`);
-  
-  return relativePath;
+
+  try {
+    const blobServiceClient = BlobServiceClient.fromConnectionString(connectionString);
+    
+    // Usamos um container único chamado 'uploads' para simplificar a gestão
+    const containerName = 'uploads';
+    const containerClient = blobServiceClient.getContainerClient(containerName);
+
+    // Cria o container se não existir (Opcional: Geralmente criado manualmente no portal)
+    // await containerClient.createIfNotExists({ access: 'blob' });
+
+    const fileName = `${Date.now()}-${file.name.replace(/\s+/g, '-')}`;
+    const blobName = `${folder}/${fileName}`;
+    const blockBlobClient = containerClient.getBlockBlobClient(blobName);
+
+    const buffer = Buffer.from(await file.arrayBuffer());
+
+    // Upload do buffer
+    await blockBlobClient.uploadData(buffer, {
+      blobHTTPHeaders: { blobContentType: file.type }
+    });
+
+    console.log(`[STORAGE] Arquivo enviado para Azure Blob: ${blobName}`);
+
+    // Retorna a URL pública do arquivo
+    // A URL segue o padrão: https://<account_name>.blob.core.windows.net/<container_name>/<blob_name>
+    return blockBlobClient.url;
+  } catch (error) {
+    console.error("[STORAGE] Erro ao fazer upload para Azure Blob:", error);
+    throw error;
+  }
 }
