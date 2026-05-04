@@ -5,19 +5,27 @@ const app = express();
 app.set('trust proxy', true);
 const port = process.env.PORT || 8080;
 
-// Middleware para normalização de cabeçalhos na Azure
+// Middleware para normalização e LOGS PROFUNDOS na Azure
 app.use((req, res, next) => {
-  // Azure costuma enviar o host original aqui
   if (req.headers['x-original-host']) {
     req.headers.host = req.headers['x-original-host'];
   }
   
-  // Forçar o protocolo para HTTPS se vier do proxy da Azure
-  if (req.headers['x-forwarded-proto'] === 'https') {
-    req.url = req.url; // garante que a URL está limpa
+  if (req.url.includes('/api/auth')) {
+    console.log('--- DEBUG AUTH START ---');
+    console.log(`Method: ${req.method} | URL: ${req.url}`);
+    console.log(`Host: ${req.headers.host}`);
+    console.log(`Origin: ${req.headers.origin}`);
+    console.log(`Referer: ${req.headers.referer}`);
+    console.log(`X-Forwarded-Proto: ${req.headers['x-forwarded-proto']}`);
+    console.log(`X-Forwarded-Host: ${req.headers['x-forwarded-host']}`);
+    console.log(`Cookies: ${req.headers.cookie ? 'Presente' : 'AUSENTE'}`);
+    if (req.headers.cookie) {
+       console.log(`Cookies List: ${req.headers.cookie.split(';').map(c => c.split('=')[0].trim()).join(', ')}`);
+    }
+    console.log('--- DEBUG AUTH END ---');
   }
 
-  console.log(`[ROUTE DEBUG] ${req.method} ${req.url} (Host: ${req.headers.host})`);
   next();
 });
 
