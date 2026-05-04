@@ -45,7 +45,7 @@ export const POST: APIRoute = async ({ request, cookies }) => {
       httpOnly: true,
       secure: true,
       sameSite: 'lax',
-      maxAge: 60 * 60 * 24 // 24 horas
+      maxAge: 1800
     });
 
     return new Response(JSON.stringify({ success: true }), { status: 200 });

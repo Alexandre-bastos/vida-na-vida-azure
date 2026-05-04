@@ -8,7 +8,7 @@ export async function createSessionToken(user: { id: string; email: string | nul
   const token = await new jose.SignJWT({ ...user })
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt()
-    .setExpirationTime('24h') // Sessão de 24 horas
+    .setExpirationTime('12h') // Limite máximo de 12 horas
     .sign(SECRET);
   
   return token;

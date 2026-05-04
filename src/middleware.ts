@@ -34,6 +34,16 @@ export const onRequest = defineMiddleware(async ({ url, locals, cookies }, next)
       role: user.role,
     };
 
+    // 4. Renovar Sessão (Sliding Session)
+    // Atualiza o tempo de expiração do cookie para mais 2 horas
+    cookies.set('session_token', sessionToken!, {
+        path: '/',
+        httpOnly: true,
+        secure: true,
+        sameSite: 'lax',
+        maxAge: 60 * 30 // +30 minutos a cada interação
+    });
+
     return next();
   } catch (error) {
     console.error('[MIDDLEWARE ERROR]', error);
