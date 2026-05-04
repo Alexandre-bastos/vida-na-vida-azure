@@ -1,6 +1,5 @@
 import type { APIRoute } from 'astro';
 import prisma from '../../../lib/prisma';
-import { crypto } from 'node:crypto';
 import { sendResetPasswordEmail } from '../../../lib/mail';
 
 export const POST: APIRoute = async ({ request }) => {
