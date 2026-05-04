@@ -5,25 +5,15 @@ const app = express();
 app.set('trust proxy', true);
 const port = process.env.PORT || 8080;
 
-// Middleware para normalização e LOGS PROFUNDOS na Azure
+// Middleware para normalização TOTAL na Azure
 app.use((req, res, next) => {
-  // Garantir que o Host seja sempre o domínio customizado se disponível
-  const host = req.headers['x-original-host'] || req.headers['x-forwarded-host'] || req.headers.host;
-  req.headers.host = host;
+  // Forçar o Express a acreditar que é HTTPS e o domínio real
+  req.headers['x-forwarded-proto'] = 'https';
+  req.headers['x-forwarded-host'] = 'comunidadevidanavida.com.br';
+  req.headers.host = 'comunidadevidanavida.com.br';
   
   if (req.url.includes('/api/auth')) {
-    console.log('--- DEBUG AUTH START ---');
-    console.log(`Method: ${req.method} | URL: ${req.url}`);
-    console.log(`Host: ${req.headers.host}`);
-    console.log(`Origin: ${req.headers.origin}`);
-    console.log(`Referer: ${req.headers.referer}`);
-    console.log(`X-Forwarded-Proto: ${req.headers['x-forwarded-proto']}`);
-    console.log(`X-Forwarded-Host: ${req.headers['x-forwarded-host']}`);
-    console.log(`Cookies: ${req.headers.cookie ? 'Presente' : 'AUSENTE'}`);
-    if (req.headers.cookie) {
-       console.log(`Cookies List: ${req.headers.cookie.split(';').map(c => c.split('=')[0].trim()).join(', ')}`);
-    }
-    console.log('--- DEBUG AUTH END ---');
+    console.log(`[AUTH] ${req.method} ${req.url} | Host: ${req.headers.host} | Proto: ${req.headers['x-forwarded-proto']}`);
   }
 
   next();

@@ -4,22 +4,26 @@ import { defineMiddleware } from "astro:middleware";
 export const onRequest = defineMiddleware(async ({ request, locals }, next) => {
   const url = new URL(request.url);
 
+  // Reconstruir a URL correta para o padrão Web (necessário para Auth.js)
+  const proto = request.headers.get('x-forwarded-proto') || 'https';
+  const host = request.headers.get('host') || 'comunidadevidanavida.com.br';
+  
+  const secureUrl = new URL(request.url);
+  secureUrl.protocol = proto.endsWith(':') ? proto : `${proto}:`;
+  secureUrl.host = host;
+
+  // Criar uma nova requisição com a URL corrigida
+  const authRequest = new Request(secureUrl.toString(), { 
+    headers: request.headers,
+    method: request.method,
+    body: request.body,
+    duplex: 'half'
+  } as any);
+
   // Rotas públicas — não precisam de autenticação
-  const publicPaths = ["/api/auth", "/login", "/definir-senha", "/manual", "/images", "/styles", "/favicon.ico", "/public", "/_astro", "/uploads"];
+  const publicPaths = ["/login", "/definir-senha", "/manual", "/images", "/styles", "/favicon.ico", "/public", "/_astro", "/uploads"];
   if (publicPaths.some((p) => url.pathname.startsWith(p))) {
     return next();
-  }
-
-  // Reconstruir a URL correta caso esteja atrás do proxy da Azure
-  let authRequest = request;
-  const proto = request.headers.get('x-forwarded-proto');
-  const host = request.headers.get('x-forwarded-host');
-  
-  if (proto && host) {
-    const secureUrl = new URL(request.url);
-    secureUrl.protocol = 'https:';
-    secureUrl.host = host;
-    authRequest = new Request(secureUrl.toString(), { headers: request.headers });
   }
 
   const session = await getSession(authRequest);
