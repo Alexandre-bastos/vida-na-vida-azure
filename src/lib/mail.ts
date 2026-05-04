@@ -2,7 +2,7 @@ import { Resend } from 'resend';
 
 
 export async function sendInviteEmail(email: string, name: string, token: string) {
-  const domain = process.env.PUBLIC_SITE_URL || 'http://localhost:4321';
+  const domain = process.env.PUBLIC_SITE_URL || 'https://comunidadevidanavida.com.br';
   const inviteLink = `${domain}/definir-senha?token=${token}&email=${email}`;
 
   // Se não houver API Key, apenas logamos o link para teste
@@ -41,7 +41,7 @@ export async function sendInviteEmail(email: string, name: string, token: string
 }
 
 export async function sendResetPasswordEmail(email: string, name: string, token: string) {
-  const domain = process.env.PUBLIC_SITE_URL || 'http://localhost:4321';
+  const domain = process.env.PUBLIC_SITE_URL || 'https://comunidadevidanavida.com.br';
   const resetLink = `${domain}/reset-password?token=${token}`;
 
   if (!process.env.RESEND_API_KEY || process.env.RESEND_API_KEY === 're_...') {
