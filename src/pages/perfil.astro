@@ -6,10 +6,10 @@ import { uploadFile } from '../lib/storage';
 import { Camera, Save, MapPin, User as UserIcon, CheckCircle, Shield, Phone } from 'lucide-react';
 import bcrypt from 'bcryptjs';
 
-const user = Astro.locals.user;
-if (!session) return Astro.redirect('/login');
+const currentUser = Astro.locals.user;
+if (!currentUser) return Astro.redirect('/login');
 
-const userId = (user as any)?.id;
+const userId = (currentUser as any)?.id;
 const user = await prisma.user.findUnique({
   where: { id: userId },
   include: {
