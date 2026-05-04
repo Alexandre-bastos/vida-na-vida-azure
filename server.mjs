@@ -11,11 +11,6 @@ app.use((req, res, next) => {
   req.headers['x-forwarded-proto'] = 'https';
   req.headers['x-forwarded-host'] = 'comunidadevidanavida.com.br';
   req.headers.host = 'comunidadevidanavida.com.br';
-  
-  if (req.url.includes('/api/auth')) {
-    console.log(`[AUTH] ${req.method} ${req.url} | Host: ${req.headers.host} | Proto: ${req.headers['x-forwarded-proto']}`);
-  }
-
   next();
 });
 

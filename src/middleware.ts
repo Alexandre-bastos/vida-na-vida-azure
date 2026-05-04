@@ -1,24 +1,8 @@
-import { getSession } from "auth-astro/server";
+import { verifySessionToken } from "./lib/auth-manual";
 import { defineMiddleware } from "astro:middleware";
 
 export const onRequest = defineMiddleware(async ({ request, locals }, next) => {
   const url = new URL(request.url);
-
-  // Reconstruir a URL correta para o padrão Web (necessário para Auth.js)
-  const proto = request.headers.get('x-forwarded-proto') || 'https';
-  const host = request.headers.get('host') || 'comunidadevidanavida.com.br';
-  
-  const secureUrl = new URL(request.url);
-  secureUrl.protocol = proto.endsWith(':') ? proto : `${proto}:`;
-  secureUrl.host = host;
-
-  // Criar uma nova requisição com a URL corrigida
-  const authRequest = new Request(secureUrl.toString(), { 
-    headers: request.headers,
-    method: request.method,
-    body: request.body,
-    duplex: 'half'
-  } as any);
 
   // Rotas públicas — não precisam de verificação de sessão
   const publicPaths = ["/api/auth", "/login", "/definir-senha", "/manual", "/images", "/styles", "/favicon.ico", "/public", "/_astro", "/uploads"];
@@ -26,10 +10,11 @@ export const onRequest = defineMiddleware(async ({ request, locals }, next) => {
     return next();
   }
 
-  const session = await getSession(authRequest);
+  const sessionToken = cookies.get('session_token')?.value;
+  const user = sessionToken ? await verifySessionToken(sessionToken) : null;
 
   // Sem sessão válida → redirecionar para login
-  if (!session?.user?.id) {
+  if (!user) {
     return new Response(null, {
       status: 302,
       headers: {
@@ -39,12 +24,12 @@ export const onRequest = defineMiddleware(async ({ request, locals }, next) => {
     });
   }
 
-  // Popula locals.user com dados da sessão
+  // Popula locals.user com os dados do token
   locals.user = {
-    id: session.user.id as string,
-    email: session.user.email ?? null,
-    name: session.user.name ?? "",
-    role: (session.user as any).role ?? "MEMBRO",
+    id: user.id,
+    email: user.email,
+    name: user.name,
+    role: user.role,
   };
 
   return next();

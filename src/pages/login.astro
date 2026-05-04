@@ -1,9 +1,11 @@
 ---
 import '../styles/global.css';
-import { getSession } from 'auth-astro/server';
+import { verifySessionToken } from '../lib/auth-manual';
 
-const session = await getSession(Astro.request);
-if (session) return Astro.redirect('/');
+const sessionToken = Astro.cookies.get('session_token')?.value;
+const user = sessionToken ? await verifySessionToken(sessionToken) : null;
+
+if (user) return Astro.redirect('/');
 ---
 
 <!doctype html>
@@ -102,9 +104,6 @@ if (session) return Astro.redirect('/');
 
     <!-- ==== SCRIPT (processado pelo Astro/Vite) ==== -->
     <script>
-      import { signIn } from 'auth-astro/client';
-
-
       // ---------- Função de exibição de erro ----------
       function showError(fieldName, message) {
         const errorEl = document.querySelector(`[data-error="${fieldName}"]`);
@@ -120,8 +119,8 @@ if (session) return Astro.redirect('/');
 
       // ---------- Login com Credenciais (disparado pelo botão ou Enter) ----------
       async function handleLogin() {
-        const email = document.getElementById('email').value;
-        const password = document.getElementById('password').value;
+        const email = (document.getElementById('email') as HTMLInputElement).value;
+        const password = (document.getElementById('password') as HTMLInputElement).value;
 
         // Limpar erros anteriores
         clearErrors();
@@ -141,27 +140,25 @@ if (session) return Astro.redirect('/');
         }
         if (hasErrors) return;
 
-        const btn = document.getElementById('login-submit');
+        const btn = document.getElementById('login-submit') as HTMLButtonElement;
         try {
           if (btn) {
             btn.innerHTML = '<span class="loading">Autenticando...</span>';
             btn.disabled = true;
           }
 
-          const result = await signIn('credentials', {
-            email,
-            password,
-            redirect: false,
+          const response = await fetch('/api/auth/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, password })
           });
 
-          console.log("SIGN IN RESULT:", result);
+          const result = await response.json();
 
-          if (result?.error) {
-            showError('password', 'E-mail ou senha incorretos');
-          } else if (result?.url && !result.url.includes('/api/auth/')) {
-            window.location.href = result.url;
-          } else {
+          if (response.ok && result.success) {
             window.location.href = '/';
+          } else {
+            showError('password', result.error || 'E-mail ou senha incorretos');
           }
         } catch (error) {
           console.error(error);
@@ -180,7 +177,7 @@ if (session) return Astro.redirect('/');
       // Suporte à tecla Enter nos campos
       ['email', 'password'].forEach(id => {
         document.getElementById(id)?.addEventListener('keydown', (e) => {
-          if (e.key === 'Enter') handleLogin();
+          if (e instanceof KeyboardEvent && e.key === 'Enter') handleLogin();
         });
       });
     </script>

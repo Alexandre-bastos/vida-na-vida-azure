@@ -1,11 +1,9 @@
 ---
 import { User, Bell, LogOut, UserPlus, Users, Megaphone, BookOpen } from 'lucide-react';
-import { getSession } from 'auth-astro/server';
 
-const session = await getSession(Astro.request);
-const userImage = session?.user?.image;
-const userName = session?.user?.name;
-const userRole = (session?.user as any)?.role || 'MEMBRO';
+const user = Astro.locals.user;
+const userName = user?.name;
+const userRole = user?.role || 'MEMBRO';
 const isAdmin = userRole === 'ADMIN';
 const isCoordinator = userRole === 'COORDENADOR';
 const isLider = userRole === 'LIDER' || userRole === 'LIDER_TREINAMENTO';
@@ -73,13 +71,9 @@ function roleLabel(role) {
           </div>
         )}
         <a href="/perfil" class="block hover:opacity-80 transition-opacity">
-          {userImage ? (
-            <img src={userImage} alt={session?.user?.name || ''} class="w-8 h-8 rounded-full border border-brand-accent/20 object-cover" />
-          ) : (
-            <div class="w-8 h-8 rounded-full bg-brand-light flex items-center justify-center text-brand-dark border border-brand-accent/30 shadow-inner">
-              <User size={18} />
-            </div>
-          )}
+          <div class="w-8 h-8 rounded-full bg-brand-light flex items-center justify-center text-brand-dark border border-brand-accent/30 shadow-inner">
+            <User size={18} />
+          </div>
         </a>
         
         <button id="logout" class="p-2 text-gray-400 hover:text-red-500 transition-colors" title="Sair">
@@ -91,7 +85,14 @@ function roleLabel(role) {
 </header>
 
 <script>
-  const { signOut } = await import("auth-astro/client");
-  document.getElementById('logout')?.addEventListener('click', () => signOut());
+  document.getElementById('logout')?.addEventListener('click', async () => {
+    try {
+      const response = await fetch('/api/auth/logout', { method: 'POST' });
+      if (response.ok) {
+        window.location.href = '/login';
+      }
+    } catch (error) {
+      console.error('Erro ao sair:', error);
+    }
+  });
 </script>
-
