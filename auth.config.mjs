@@ -70,35 +70,6 @@ export default defineConfig({
   session: {
     strategy: "jwt"
   },
-  cookies: {
-    sessionToken: {
-      name: `authjs.session-token`,
-      options: {
-        httpOnly: true,
-        sameSite: "lax",
-        path: "/",
-        secure: true,
-      },
-    },
-    callbackUrl: {
-      name: `authjs.callback-url`,
-      options: {
-        httpOnly: true,
-        sameSite: "lax",
-        path: "/",
-        secure: true,
-      },
-    },
-    csrfToken: {
-      name: `authjs.csrf-token`,
-      options: {
-        httpOnly: true,
-        sameSite: "lax",
-        path: "/",
-        secure: true,
-      },
-    },
-  },
-  secret: process.env.AUTH_SECRET || "uma-chave-de-backup-muito-segura-123",
+  secret: process.env.AUTH_SECRET,
   debug: true
 });

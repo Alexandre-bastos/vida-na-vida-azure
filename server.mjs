@@ -5,24 +5,19 @@ const app = express();
 app.set('trust proxy', true);
 const port = process.env.PORT || 8080;
 
-// Middleware para logs de rota e correção de proxy
+// Middleware para normalização de cabeçalhos na Azure
 app.use((req, res, next) => {
-  const protocol = req.headers['x-forwarded-proto'] || req.protocol;
-  const host = req.headers['x-forwarded-host'] || req.get('host');
+  // Azure costuma enviar o host original aqui
+  if (req.headers['x-original-host']) {
+    req.headers.host = req.headers['x-original-host'];
+  }
   
-  // Forçar Origin e Referer a usarem HTTPS se estivermos atrás do proxy da Azure
+  // Forçar o protocolo para HTTPS se vier do proxy da Azure
   if (req.headers['x-forwarded-proto'] === 'https') {
-    const secureOrigin = `https://${host}`;
-    
-    if (!req.headers.origin || req.headers.origin.startsWith('http:')) {
-      req.headers.origin = secureOrigin;
-    }
-    if (req.headers.referer && req.headers.referer.startsWith('http:')) {
-      req.headers.referer = req.headers.referer.replace('http:', 'https:');
-    }
+    req.url = req.url; // garante que a URL está limpa
   }
 
-  console.log(`[ROUTE DEBUG] ${req.method} ${req.url} (Proto: ${protocol})`);
+  console.log(`[ROUTE DEBUG] ${req.method} ${req.url} (Host: ${req.headers.host})`);
   next();
 });
 
