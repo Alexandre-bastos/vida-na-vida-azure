@@ -3,7 +3,7 @@ import { defineMiddleware } from "astro:middleware";
 
 export const onRequest = defineMiddleware(async ({ url, locals, cookies }, next) => {
   // 1. Rotas públicas — SEMPRE ignorar verificação de sessão
-  const publicPaths = ["/api/auth", "/login", "/definir-senha", "/manual", "/images", "/styles", "/favicon.ico", "/public", "/_astro", "/uploads"];
+  const publicPaths = ["/api/auth", "/login", "/esqueci-senha", "/reset-password", "/definir-senha", "/manual", "/images", "/styles", "/favicon.ico", "/public", "/_astro", "/uploads"];
   if (publicPaths.some((p) => url.pathname.startsWith(p))) {
     return next();
   }
