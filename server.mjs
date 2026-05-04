@@ -2,6 +2,7 @@ import express from 'express';
 import { handler as astroHandler } from './dist/server/entry.mjs';
 
 const app = express();
+app.set('trust proxy', true);
 const port = process.env.PORT || 8080;
 
 // Middleware para logs de rota e correção de proxy

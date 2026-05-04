@@ -11,8 +11,14 @@ import node from '@astrojs/node';
 export default defineConfig({
   vite: {
     plugins: [tailwindcss()],
+    resolve: {
+      alias: {
+        '@prisma/client': '/src/generated/prisma'
+      }
+    },
     ssr: {
-      noExternal: ['@prisma/client', '.prisma']
+      noExternal: ['@prisma/client', '@auth/prisma-adapter'],
+      external: ['@prisma-generated']
     }
   },
   integrations: [react(), auth()],
