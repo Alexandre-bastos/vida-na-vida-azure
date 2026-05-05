@@ -1,6 +1,6 @@
 ---
 import AppLayout from '../layouts/AppLayout.astro';
-import { Calendar, Users, Megaphone, ArrowRight, UserPlus, BookOpen, Download } from 'lucide-react';
+import { Calendar, Users, Megaphone, ArrowRight, UserPlus, BookOpen, Download, Heart } from 'lucide-react';
 
 import prisma from '../lib/prisma';
 
@@ -256,6 +256,18 @@ const profileUpdated = Astro.url.searchParams.get('profile_updated') === '1';
 					<div>
 						<h3 class="font-semibold text-brand-dark text-sm">Membros</h3>
 						<p class="text-[10px] text-gray-400 mt-0.5">Gerenciar usuários</p>
+					</div>
+				</a>
+			)}
+
+			{(isAdmin || isCoordinator) && (
+				<a href="/visitantes" class="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 hover:border-brand-light transition-all flex flex-col items-center text-center gap-3">
+					<div class="w-12 h-12 rounded-full bg-red-50 text-red-500 flex items-center justify-center">
+						<Heart size={24} />
+					</div>
+					<div>
+						<h3 class="font-semibold text-brand-dark text-sm">Visitantes</h3>
+						<p class="text-[10px] text-gray-400 mt-0.5">Gerenciar interessados</p>
 					</div>
 				</a>
 			)}

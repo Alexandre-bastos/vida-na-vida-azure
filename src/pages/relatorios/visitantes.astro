@@ -1,0 +1,189 @@
+---
+import ReportLayout from '../../layouts/ReportLayout.astro';
+import { Heart, BarChart2, Users, Star } from 'lucide-react';
+import prisma from '../../lib/prisma';
+
+const user = Astro.locals.user;
+if (!user) return Astro.redirect('/login');
+
+const userRole = ((user as any)?.role || 'MEMBRO').toUpperCase();
+if (userRole === 'MEMBRO') return Astro.redirect('/');
+
+// Extrair filtros de data
+const url = new URL(Astro.request.url);
+const startParam = url.searchParams.get('startDate');
+const endParam = url.searchParams.get('endDate');
+const cellId = url.searchParams.get('cellId');
+
+const startDate = startParam ? new Date(startParam) : null;
+const endDate = endParam ? new Date(endParam) : new Date();
+
+// Filtro de célula
+const cellFilter = cellId ? { id: cellId } : {};
+
+// 1. Quantidade de visitantes por célula (ou geral)
+const cellsWithVisitorCount = await prisma.cell.findMany({
+  where: cellFilter,
+  include: {
+    visitors: true,
+    meetings: {
+      where: {
+        date: {
+          gte: startDate || new Date(0),
+          lte: endDate
+        }
+      },
+      include: {
+        visitorPresences: true
+      }
+    }
+  }
+});
+
+const cellStats = cellsWithVisitorCount.map(cell => {
+  const uniqueVisitors = new Set();
+  cell.visitors.forEach(v => uniqueVisitors.add(v.id));
+  cell.meetings.forEach(m => m.visitorPresences.forEach(vp => uniqueVisitors.add(vp.visitorId)));
+  
+  return {
+    id: cell.id,
+    name: cell.name,
+    count: uniqueVisitors.size
+  };
+}).sort((a, b) => b.count - a.count);
+
+// 2. Quem mais convida visitantes (Ranking)
+const invitationRanking = await prisma.user.findMany({
+  where: { active: true },
+  include: {
+    invitedVisitors: {
+       where: {
+         createdAt: {
+           gte: startDate || new Date(0),
+           lte: endDate
+         }
+       }
+    },
+    visitorMeetings: {
+      include: {
+        meeting: true
+      },
+      where: {
+        meeting: {
+          date: {
+            gte: startDate || new Date(0),
+            lte: endDate
+          }
+        }
+      }
+    }
+  }
+});
+
+const memberStats = invitationRanking.map(member => {
+  const uniqueInvited = new Set();
+  member.invitedVisitors.forEach(v => uniqueInvited.add(v.id));
+  member.visitorMeetings.forEach(vm => uniqueInvited.add(vm.visitorId));
+  
+  return {
+    id: member.id,
+    name: member.name,
+    count: uniqueInvited.size
+  };
+}).filter(m => m.count > 0).sort((a, b) => b.count - a.count).slice(0, 10);
+
+---
+
+<ReportLayout title="Relatório de Visitantes" activeTab="visitantes">
+	<div class="space-y-6">
+		<!-- Cards de Resumo -->
+		<div class="grid grid-cols-2 gap-4">
+			<div class="bg-white p-5 rounded-3xl shadow-sm border border-gray-100">
+				<div class="w-10 h-10 rounded-xl bg-red-50 text-red-400 flex items-center justify-center mb-3">
+					<Heart size={20} />
+				</div>
+				<p class="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Total de Visitantes</p>
+				<h3 class="text-2xl font-black text-brand-dark mt-1">
+					{cellStats.reduce((acc, curr) => acc + curr.count, 0)}
+				</h3>
+			</div>
+			<div class="bg-white p-5 rounded-3xl shadow-sm border border-gray-100">
+				<div class="w-10 h-10 rounded-xl bg-blue-50 text-brand-primary flex items-center justify-center mb-3">
+					<Users size={20} />
+				</div>
+				<p class="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Membros Engajados</p>
+				<h3 class="text-2xl font-black text-brand-dark mt-1">
+					{memberStats.length}
+				</h3>
+			</div>
+		</div>
+
+		<!-- Ranking de Membros (Quem mais convida) -->
+		<section class="bg-white p-6 rounded-[2.5rem] shadow-sm border border-gray-100">
+			<div class="flex items-center gap-3 mb-6">
+				<div class="w-10 h-10 rounded-xl bg-amber-50 text-amber-500 flex items-center justify-center">
+					<Star size={20} />
+				</div>
+				<div>
+					<h3 class="font-bold text-brand-dark">Ranking de Convites</h3>
+					<p class="text-xs text-gray-400">Membros que mais trouxeram visitantes no período.</p>
+				</div>
+			</div>
+
+			<div class="space-y-4">
+				{memberStats.length === 0 ? (
+					<p class="text-center text-xs text-gray-400 py-4 italic">Nenhum convite registrado no período.</p>
+				) : (
+					memberStats.map((member, index) => (
+						<div class="flex items-center justify-between">
+							<div class="flex items-center gap-3">
+								<span class={`w-6 h-6 flex items-center justify-center rounded-full text-[10px] font-bold ${index === 0 ? 'bg-amber-100 text-amber-600' : 'bg-gray-100 text-gray-400'}`}>
+									{index + 1}
+								</span>
+								<span class="text-sm font-bold text-gray-700">{member.name}</span>
+							</div>
+							<div class="flex items-center gap-1.5">
+								<span class="text-sm font-black text-brand-primary">{member.count}</span>
+								<span class="text-[10px] text-gray-400 font-bold uppercase tracking-tighter">Visitantes</span>
+							</div>
+						</div>
+					))
+				)}
+			</div>
+		</section>
+
+		<!-- Visitantes por Célula -->
+		<section class="bg-white p-6 rounded-[2.5rem] shadow-sm border border-gray-100">
+			<div class="flex items-center gap-3 mb-6">
+				<div class="w-10 h-10 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center">
+					<BarChart2 size={20} />
+				</div>
+				<div>
+					<h3 class="font-bold text-brand-dark">Visitantes por Célula</h3>
+					<p class="text-xs text-gray-400">Distribuição de visitantes nas unidades.</p>
+				</div>
+			</div>
+
+			<div class="space-y-6">
+				{cellStats.filter(c => c.count > 0).length === 0 ? (
+					<p class="text-center text-xs text-gray-400 py-4 italic">Nenhum visitante vinculado a células no período.</p>
+				) : (
+					cellStats.filter(c => c.count > 0).map(cell => (
+						<div class="space-y-2">
+							<div class="flex justify-between items-end px-1">
+								<span class="text-sm font-bold text-gray-700">{cell.name}</span>
+								<span class="text-xs font-bold text-brand-primary">{cell.count}</span>
+							</div>
+							<div class="w-full h-3 bg-gray-100 rounded-full overflow-hidden">
+								<div 
+									class="h-full bg-brand-primary rounded-full" 
+									style={`width: ${(cell.count / Math.max(...cellStats.map(c => c.count), 1) * 100)}%`}
+								></div>
+							</div>
+						</div>
+					))
+				)}
+			</div>
+		</section>
+	</div>
+</ReportLayout>

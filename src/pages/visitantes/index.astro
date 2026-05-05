@@ -1,0 +1,131 @@
+---
+import AppLayout from '../../layouts/AppLayout.astro';
+import { UserPlus, Search, Phone, Mail, MapPin, ChevronRight, Heart } from 'lucide-react';
+import prisma from '../../lib/prisma';
+
+const user = Astro.locals.user;
+if (!user) return Astro.redirect('/login');
+
+const userRole = ((user as any)?.role || 'MEMBRO').toUpperCase();
+if (userRole === 'MEMBRO') return Astro.redirect('/');
+
+const isAdmin = userRole === 'ADMIN';
+const isCoordinator = userRole === 'COORDENADOR';
+const isLider = userRole.startsWith('LIDER');
+
+// Buscar visitantes
+// Por enquanto buscamos todos, no futuro podemos filtrar por célula se o líder só puder ver os dele
+const visitors = await prisma.visitor.findMany({
+  include: {
+    invitedBy: true,
+    cell: true
+  },
+  orderBy: { name: 'asc' }
+});
+
+const canAddVisitors = isAdmin || isCoordinator || isLider;
+---
+
+<AppLayout title="Visitantes">
+	<div class="space-y-6">
+		<header class="flex items-center justify-between">
+			<div>
+				<div class="flex items-center gap-3">
+					<a href="/" class="text-gray-400 hover:text-brand-primary hidden sm:inline">Home</a>
+					<h1 class="text-2xl font-bold text-brand-dark">Visitantes</h1>
+				</div>
+				<p class="text-sm text-gray-500 mt-1">Pessoas que estão conhecendo nossa comunidade.</p>
+			</div>
+			{canAddVisitors && (
+				<a href="/visitantes/novo" class="bg-brand-primary text-white p-3 rounded-2xl shadow-lg shadow-brand-primary/20 hover:scale-105 transition-transform active:scale-95">
+					<UserPlus size={20} />
+				</a>
+			)}
+		</header>
+
+		<!-- Search Bar -->
+		<div class="relative">
+			<Search class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+			<input 
+				type="text" 
+				id="visitor-search"
+				placeholder="Buscar visitante por nome..." 
+				class="w-full pl-12 pr-4 py-4 rounded-2xl border border-gray-100 bg-white shadow-sm focus:outline-none focus:ring-4 focus:ring-brand-primary/5 focus:border-brand-primary transition-all text-sm"
+			/>
+		</div>
+
+		<div class="grid gap-3" id="visitors-list">
+			{visitors.length === 0 ? (
+				<div class="bg-white p-12 rounded-[2.5rem] text-center border border-dashed border-gray-200">
+					<div class="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center text-red-400 mx-auto mb-4">
+						<Heart size={32} />
+					</div>
+					<h3 class="font-bold text-brand-dark">Nenhum visitante encontrado</h3>
+					<p class="text-sm text-gray-400 mt-1">Comece cadastrando as pessoas que visitaram sua célula ou a igreja.</p>
+					{canAddVisitors && (
+						<a href="/visitantes/novo" class="inline-block mt-6 px-6 py-3 bg-brand-primary text-white rounded-xl font-bold text-sm">
+							Cadastrar Visitante
+						</a>
+					)}
+				</div>
+			) : (
+				visitors.map((visitor) => (
+					<div class="bg-white p-4 rounded-3xl shadow-sm border border-gray-100 flex items-center justify-between hover:border-brand-light transition-all group visitor-card" data-name={visitor.name.toLowerCase()}>
+						<div class="flex items-center gap-4">
+							<div class="w-12 h-12 rounded-2xl bg-red-50 flex items-center justify-center text-red-400 overflow-hidden border border-gray-50 shadow-inner">
+								<span class="font-bold text-lg">{visitor.name?.charAt(0)}</span>
+							</div>
+							<div>
+								<h3 class="font-bold text-brand-dark leading-tight">{visitor.name}</h3>
+								<div class="flex flex-wrap items-center gap-2 mt-1">
+									{visitor.cell ? (
+										<span class="text-[9px] font-bold px-2 py-0.5 rounded-full border uppercase tracking-wider bg-blue-50 text-blue-500 border-blue-100">
+											Célula: {visitor.cell.name}
+										</span>
+									) : (
+										<span class="text-[9px] font-bold px-2 py-0.5 rounded-full border uppercase tracking-wider bg-gray-50 text-gray-400 border-gray-100">
+											Visitante da Igreja
+										</span>
+									)}
+									{visitor.invitedBy && (
+										<span class="text-[9px] font-medium text-gray-400">
+											Convidado por {visitor.invitedBy.name?.split(' ')[0]}
+										</span>
+									)}
+								</div>
+							</div>
+						</div>
+
+						<div class="flex items-center gap-2">
+							{visitor.phone && (
+								<a href={`tel:${visitor.phone}`} class="w-9 h-9 rounded-xl bg-gray-50 flex items-center justify-center text-gray-400 hover:text-brand-primary hover:bg-blue-50 transition-all">
+									<Phone size={16} />
+								</a>
+							)}
+							<a href={`/visitantes/${visitor.id}`} class="w-9 h-9 rounded-xl bg-gray-50 flex items-center justify-center text-gray-400 group-hover:text-brand-primary group-hover:bg-blue-50 transition-all">
+								<ChevronRight size={18} />
+							</a>
+						</div>
+					</div>
+				))
+			)}
+		</div>
+	</div>
+</AppLayout>
+
+<script>
+	const searchInput = document.getElementById('visitor-search') as HTMLInputElement;
+	const visitorCards = document.querySelectorAll('.visitor-card');
+
+	searchInput?.addEventListener('input', (e) => {
+		const term = (e.target as HTMLInputElement).value.toLowerCase();
+		visitorCards.forEach(card => {
+			const name = (card as HTMLElement).dataset.name || '';
+			if (name.includes(term)) {
+				(card as HTMLElement).style.display = 'flex';
+			} else {
+				(card as HTMLElement).style.display = 'none';
+			}
+		});
+	});
+</script>

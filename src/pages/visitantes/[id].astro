@@ -1,0 +1,268 @@
+---
+import AppLayout from '../../layouts/AppLayout.astro';
+import { ChevronLeft, Save, User, Mail, Phone, MapPin, Heart, Users, Trash2 } from 'lucide-react';
+import prisma from '../../lib/prisma';
+
+const user = Astro.locals.user;
+if (!user) return Astro.redirect('/login');
+
+const { id } = Astro.params;
+
+const userRole = ((user as any)?.role || 'MEMBRO').toUpperCase();
+if (userRole === 'MEMBRO') return Astro.redirect('/');
+
+const isAdmin = userRole === 'ADMIN';
+const isCoordinator = userRole === 'COORDENADOR';
+const isLider = userRole.startsWith('LIDER');
+
+let visitor = await prisma.visitor.findUnique({
+  where: { id },
+  include: { invitedBy: true, cell: true }
+});
+
+if (!visitor) return Astro.redirect('/visitantes');
+
+let error = '';
+let success = '';
+
+if (Astro.request.method === 'POST') {
+  const formData = await Astro.request.formData();
+  const action = formData.get('action')?.toString();
+
+  if (action === 'delete' && isAdmin) {
+    await prisma.visitorattendance.deleteMany({ where: { visitorId: id } });
+    await prisma.visitor.delete({ where: { id } });
+    return Astro.redirect('/visitantes?deleted=1');
+  }
+
+  try {
+    const name = formData.get('name')?.toString();
+    const email = formData.get('email')?.toString() || null;
+    const phone = formData.get('phone')?.toString() || null;
+    const address = formData.get('address')?.toString() || null;
+    const observations = formData.get('observations')?.toString() || null;
+    const invitedById = formData.get('invitedById')?.toString() || null;
+    const cellId = formData.get('cellId')?.toString() || null;
+
+    if (!name) {
+      error = 'O nome do visitante é obrigatório.';
+    }
+
+    if (!error) {
+      visitor = await prisma.visitor.update({
+        where: { id },
+        data: {
+          name: name!,
+          email,
+          phone,
+          address,
+          observations,
+          invitedById,
+          cellId
+        },
+        include: { invitedBy: true, cell: true }
+      });
+      success = 'Alterações salvas com sucesso!';
+    }
+  } catch (e: any) {
+    console.error(e);
+    error = 'Ocorreu um erro ao salvar o visitante.';
+  }
+}
+
+// Buscar células e membros para os selects
+const cells = await prisma.cell.findMany({ orderBy: { name: 'asc' } });
+const members = await prisma.user.findMany({ 
+  where: { active: true },
+  orderBy: { name: 'asc' },
+  select: { id: true, name: true }
+});
+---
+
+<AppLayout title={`Editar ${visitor.name}`}>
+	<div class="space-y-6">
+		<header class="flex items-center justify-between">
+			<div class="flex items-center gap-4">
+				<a href="/visitantes" class="w-10 h-10 rounded-xl bg-white shadow-sm border border-gray-100 flex items-center justify-center text-gray-500 hover:text-brand-primary transition-colors">
+					<ChevronLeft size={20} />
+				</a>
+				<div>
+					<h1 class="text-xl font-bold text-brand-dark">{visitor.name}</h1>
+					<p class="text-[11px] text-gray-400 font-bold uppercase tracking-wider">Editar Cadastro</p>
+				</div>
+			</div>
+			{isAdmin && (
+				<form method="POST" onsubmit="return confirm('Tem certeza que deseja excluir este visitante permanentemente?')">
+					<input type="hidden" name="action" value="delete" />
+					<button type="submit" class="w-10 h-10 rounded-xl bg-red-50 text-red-500 flex items-center justify-center hover:bg-red-100 transition-colors">
+						<Trash2 size={18} />
+					</button>
+				</form>
+			)}
+		</header>
+
+		{error && (
+			<div class="bg-red-50 text-red-500 p-4 rounded-2xl text-sm font-medium border border-red-100 animate-shake">
+				{error}
+			</div>
+		)}
+
+		{success && (
+			<div class="bg-green-50 text-green-600 p-4 rounded-2xl text-sm font-bold border border-green-100">
+				{success}
+			</div>
+		)}
+
+		<form method="POST" class="space-y-6 pb-24">
+			<div class="bg-white p-6 rounded-[2rem] shadow-sm border border-gray-100 space-y-4">
+				<div class="flex items-center gap-2 mb-2">
+					<div class="w-8 h-8 rounded-lg bg-red-50 text-red-400 flex items-center justify-center">
+						<Heart size={16} />
+					</div>
+					<h2 class="font-bold text-brand-dark">Informações Básicas</h2>
+				</div>
+
+				<div class="space-y-1.5">
+					<label for="name" class="text-[11px] font-bold text-gray-400 uppercase tracking-wider ml-1">Nome Completo</label>
+					<input 
+						type="text" 
+						id="name" 
+						name="name" 
+						required 
+						value={visitor.name}
+						placeholder="Nome do visitante" 
+						class="w-full px-5 py-4 rounded-2xl border border-gray-100 bg-gray-50/50 focus:bg-white focus:ring-4 focus:ring-brand-primary/10 focus:border-brand-primary focus:outline-none transition-all text-sm" 
+					/>
+				</div>
+
+				<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+					<div class="space-y-1.5">
+						<label for="phone" class="text-[11px] font-bold text-gray-400 uppercase tracking-wider ml-1">Telefone</label>
+						<input 
+							type="tel" 
+							id="phone" 
+							name="phone" 
+							value={visitor.phone || ''}
+							placeholder="(00) 00000-0000" 
+							class="w-full px-5 py-4 rounded-2xl border border-gray-100 bg-gray-50/50 focus:bg-white focus:ring-4 focus:ring-brand-primary/10 focus:border-brand-primary focus:outline-none transition-all text-sm phone-mask" 
+						/>
+					</div>
+					<div class="space-y-1.5">
+						<label for="email" class="text-[11px] font-bold text-gray-400 uppercase tracking-wider ml-1">E-mail</label>
+						<input 
+							type="email" 
+							id="email" 
+							name="email" 
+							value={visitor.email || ''}
+							placeholder="email@exemplo.com" 
+							class="w-full px-5 py-4 rounded-2xl border border-gray-100 bg-gray-50/50 focus:bg-white focus:ring-4 focus:ring-brand-primary/10 focus:border-brand-primary focus:outline-none transition-all text-sm" 
+						/>
+					</div>
+				</div>
+
+				<div class="space-y-1.5">
+					<label for="address" class="text-[11px] font-bold text-gray-400 uppercase tracking-wider ml-1">Endereço</label>
+					<div class="relative">
+						<MapPin size={16} class="absolute left-4 top-4 text-gray-400" />
+						<input 
+							type="text" 
+							id="address" 
+							name="address" 
+							value={visitor.address || ''}
+							placeholder="Rua, número, bairro..." 
+							class="w-full pl-12 pr-5 py-4 rounded-2xl border border-gray-100 bg-gray-50/50 focus:bg-white focus:ring-4 focus:ring-brand-primary/10 focus:border-brand-primary focus:outline-none transition-all text-sm" 
+						/>
+					</div>
+				</div>
+			</div>
+
+			<div class="bg-white p-6 rounded-[2rem] shadow-sm border border-gray-100 space-y-4">
+				<div class="flex items-center gap-2 mb-2">
+					<div class="w-8 h-8 rounded-lg bg-blue-50 text-brand-primary flex items-center justify-center">
+						<Users size={16} />
+					</div>
+					<h2 class="font-bold text-brand-dark">Vínculo e Convite</h2>
+				</div>
+
+				<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+					<div class="space-y-1.5">
+						<label for="invitedById" class="text-[11px] font-bold text-gray-400 uppercase tracking-wider ml-1">Quem Convidou?</label>
+						<select 
+							id="invitedById" 
+							name="invitedById" 
+							class="w-full px-5 py-4 rounded-2xl border border-gray-100 bg-gray-50/50 focus:bg-white focus:outline-none text-sm appearance-none"
+						>
+							<option value="">Selecione um membro...</option>
+							{members.map(m => (
+								<option value={m.id} selected={visitor.invitedById === m.id}>{m.name}</option>
+							))}
+						</select>
+					</div>
+					<div class="space-y-1.5">
+						<label for="cellId" class="text-[11px] font-bold text-gray-400 uppercase tracking-wider ml-1">Célula Visitada</label>
+						<select 
+							id="cellId" 
+							name="cellId" 
+							class="w-full px-5 py-4 rounded-2xl border border-gray-100 bg-gray-50/50 focus:bg-white focus:outline-none text-sm appearance-none"
+						>
+							<option value="">Apenas Igreja</option>
+							{cells.map(c => (
+								<option value={c.id} selected={visitor.cellId === c.id}>{c.name}</option>
+							))}
+						</select>
+					</div>
+				</div>
+
+				<div class="space-y-1.5">
+					<label for="observations" class="text-[11px] font-bold text-gray-400 uppercase tracking-wider ml-1">Observações</label>
+					<textarea 
+						id="observations" 
+						name="observations" 
+						rows="3"
+						placeholder="Alguma observação relevante..."
+						class="w-full px-5 py-4 rounded-2xl border border-gray-100 bg-gray-50/50 focus:bg-white focus:outline-none text-sm"
+					>{visitor.observations}</textarea>
+				</div>
+			</div>
+
+			<div class="fixed bottom-24 md:bottom-6 left-0 w-full px-6 flex justify-center z-20">
+				<button type="submit" class="w-full max-w-sm bg-brand-primary text-white font-bold py-4 rounded-2xl shadow-xl shadow-brand-primary/30 flex items-center justify-center gap-3 hover:brightness-110 transition-all active:scale-95">
+					<Save size={20} />
+					Salvar Alterações
+				</button>
+			</div>
+		</form>
+	</div>
+</AppLayout>
+
+<script>
+  // Máscara de telefone
+  const phoneInputs = document.querySelectorAll('.phone-mask');
+  phoneInputs.forEach(input => {
+    input.addEventListener('input', (e: any) => {
+      let value = e.target.value.replace(/\D/g, '');
+      if (value.length > 11) value = value.slice(0, 11);
+      if (value.length > 10) {
+        value = value.replace(/^(\d{2})(\d{5})(\d{4}).*/, '($1) $2-$3');
+      } else if (value.length > 5) {
+        value = value.replace(/^(\d{2})(\d{4})(\d{0,4}).*/, '($1) $2-$3');
+      } else if (value.length > 2) {
+        value = value.replace(/^(\d{2})(\d{0,5})/, '($1) $2');
+      } else if (value.length > 0) {
+        value = value.replace(/^(\d{0,2})/, '($1');
+      }
+      e.target.value = value;
+    });
+  });
+</script>
+
+<style>
+	@keyframes shake {
+		0%, 100% { transform: translateX(0); }
+		25% { transform: translateX(-5px); }
+		75% { transform: translateX(5px); }
+	}
+	.animate-shake {
+		animation: shake 0.2s ease-in-out 0s 2;
+	}
+</style>

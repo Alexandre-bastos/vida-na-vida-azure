@@ -49,6 +49,14 @@ if (qMeetingId) {
   }
 }
 
+// Get all visitors for the selection
+const allVisitors = await prisma.visitor.findMany({ orderBy: { name: 'asc' } });
+// Map of visitors already in this meeting
+const meetingVisitorsMap = new Map();
+if (meeting && (meeting as any).visitorPresences) {
+  (meeting as any).visitorPresences.forEach(vp => meetingVisitorsMap.set(vp.visitorId, vp));
+}
+
 // Get members
 async function loadMembers(cellId) {
   if (!cellId) return [];
@@ -125,6 +133,23 @@ if (Astro.request.method === 'POST') {
       } 
     }));
   }
+  
+  // Create visitor presences
+  const visitorIdsInForm = entries
+    .filter(([key]) => key.startsWith('visitor_'))
+    .map(([key]) => key.replace('visitor_', ''));
+
+  for (const vid of visitorIdsInForm) {
+    const broughtById = formData.get(`broughtBy_${vid}`)?.toString() || null;
+    presencePromises.push(prisma.visitorattendance.create({
+      data: {
+        meetingId: finalMeetingId!,
+        visitorId: vid,
+        broughtById
+      }
+    }));
+  }
+
   await Promise.all(presencePromises);
 
   return Astro.redirect(`/presenca?saved=1`);
@@ -240,6 +265,72 @@ if (Astro.request.method === 'POST') {
           </div>
         </section>
 
+        <!-- Seção de Visitantes -->
+        <section class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="font-bold text-gray-800 text-lg">Visitantes no Encontro</h3>
+            <button type="button" id="add-visitor-row" class="text-xs font-bold bg-red-50 text-red-500 px-3 py-1 rounded-full hover:bg-red-100 transition-colors">
+              + Adicionar Visitante
+            </button>
+          </div>
+
+          <div id="visitors-container" class="space-y-3">
+            {meeting && (meeting as any).visitorPresences && (meeting as any).visitorPresences.map(vp => (
+              <div class="visitor-row flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-xl border border-dashed border-gray-200 gap-3">
+                <div class="flex items-center gap-3">
+                  <div class="w-10 h-10 rounded-full bg-red-50 text-red-400 flex items-center justify-center font-bold text-sm">
+                    {vp.visitor.name?.charAt(0)}
+                  </div>
+                  <div>
+                    <div class="font-bold text-gray-800">{vp.visitor.name}</div>
+                    <input type="hidden" name={`visitor_${vp.visitorId}`} value="1" />
+                  </div>
+                </div>
+                <div class="flex items-center gap-3">
+                  <select name={`broughtBy_${vp.visitorId}`} class="px-3 py-1.5 rounded-lg border bg-gray-50 text-xs focus:ring-2 focus:ring-brand-primary/20 outline-none transition-all">
+                    <option value="">Quem trouxe?</option>
+                    {members.map(m => (
+                      <option value={m.user.id} selected={vp.broughtById === m.user.id}>{m.user.name}</option>
+                    ))}
+                  </select>
+                  <button type="button" class="remove-visitor text-red-400 hover:text-red-600 p-1">
+                    &times;
+                  </button>
+                </div>
+              </div>
+            ))}
+            
+            {(!meeting || !(meeting as any).visitorPresences || (meeting as any).visitorPresences.length === 0) && (
+              <p id="no-visitors-msg" class="text-center text-xs text-gray-400 py-4 italic">Nenhum visitante adicionado a este encontro.</p>
+            )}
+          </div>
+
+          <!-- Template escondido para novas linhas de visitante -->
+          <template id="visitor-row-template">
+            <div class="visitor-row flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-xl border border-dashed border-red-100 bg-red-50/10 gap-3 animate-in fade-in slide-in-from-top-1">
+              <div class="flex items-center gap-3 w-full sm:w-1/2">
+                <select name="visitor_TEMP_ID" class="visitor-select w-full px-3 py-2 rounded-lg border bg-white text-sm focus:ring-2 focus:ring-brand-primary/20 outline-none transition-all" required>
+                  <option value="">Selecione o visitante...</option>
+                  {allVisitors.map(v => (
+                    <option value={v.id}>{v.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div class="flex items-center gap-3 w-full sm:w-1/2 justify-end">
+                <select name="broughtBy_TEMP_ID" class="brought-by-select flex-1 px-3 py-2 rounded-lg border bg-white text-xs focus:ring-2 focus:ring-brand-primary/20 outline-none transition-all">
+                  <option value="">Quem trouxe?</option>
+                  {members.map(m => (
+                    <option value={m.user.id}>{m.user.name}</option>
+                  ))}
+                </select>
+                <button type="button" class="remove-visitor text-red-400 hover:text-red-600 font-bold px-2 text-xl">
+                  &times;
+                </button>
+              </div>
+            </div>
+          </template>
+        </section>
+
         <div class="flex justify-end gap-3 pt-4 pb-8">
           <a href="/presenca" class="px-6 py-3 rounded-2xl border text-gray-700 font-bold hover:bg-gray-50 transition-colors">Cancelar</a>
           <button id="presenca-submit" type="submit" class="px-6 py-3 rounded-2xl bg-brand-primary text-white font-bold hover:brightness-110 shadow-lg shadow-brand-primary/20 transition-all">Salvar Presença</button>
@@ -308,6 +399,58 @@ if (Astro.request.method === 'POST') {
       }
     } else {
       if (photoLoading) photoLoading.classList.add('hidden');
+    }
+  });
+
+  // Lógica para adicionar/remover visitantes
+  const addVisitorBtn = document.getElementById('add-visitor-row');
+  const visitorsContainer = document.getElementById('visitors-container');
+  const visitorTemplate = document.getElementById('visitor-row-template');
+  const noVisitorsMsg = document.getElementById('no-visitors-msg');
+
+  addVisitorBtn?.addEventListener('click', () => {
+    if (!visitorsContainer || !visitorTemplate) return;
+    
+    if (noVisitorsMsg) noVisitorsMsg.style.display = 'none';
+    
+    const clone = (visitorTemplate as HTMLTemplateElement).content.cloneNode(true) as DocumentFragment;
+    const row = clone.querySelector('.visitor-row');
+    const tempId = 'new_' + Math.random().toString(36).substr(2, 9);
+    
+    const selectVisitor = row?.querySelector('.visitor-select') as HTMLSelectElement;
+    const selectBrought = row?.querySelector('.brought-by-select') as HTMLSelectElement;
+    
+    if (selectVisitor) selectVisitor.name = `visitor_${tempId}`;
+    if (selectBrought) selectBrought.name = `broughtBy_${tempId}`;
+    
+    // Atualizar IDs reais quando o visitante for selecionado
+    selectVisitor?.addEventListener('change', (e) => {
+      const realId = (e.target as HTMLSelectElement).value;
+      if (realId) {
+        selectVisitor.name = `visitor_${realId}`;
+        if (selectBrought) selectBrought.name = `broughtBy_${realId}`;
+      }
+    });
+
+    row?.querySelector('.remove-visitor')?.addEventListener('click', () => {
+      (row as HTMLElement).remove();
+      if (visitorsContainer.querySelectorAll('.visitor-row').length === 0 && noVisitorsMsg) {
+        noVisitorsMsg.style.display = 'block';
+      }
+    });
+
+    visitorsContainer.appendChild(clone);
+  });
+
+  // Delegar remoção para itens existentes (no modo edição)
+  visitorsContainer?.addEventListener('click', (e) => {
+    const target = e.target as HTMLElement;
+    if (target.classList.contains('remove-visitor') || target.parentElement?.classList.contains('remove-visitor')) {
+      const row = target.closest('.visitor-row');
+      row?.remove();
+      if (visitorsContainer.querySelectorAll('.visitor-row').length === 0 && noVisitorsMsg) {
+        noVisitorsMsg.style.display = 'block';
+      }
     }
   });
   </script>

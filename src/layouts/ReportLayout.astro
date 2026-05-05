@@ -1,12 +1,12 @@
 ---
 import AppLayout from './AppLayout.astro';
-import { LayoutDashboard, Activity, Users, ChevronLeft, Megaphone } from 'lucide-react';
+import { LayoutDashboard, Activity, Users, ChevronLeft, Megaphone, Heart } from 'lucide-react';
 
 import prisma from '../lib/prisma';
 
 interface Props {
   title: string;
-  activeTab: 'geral' | 'frequencia' | 'perfil';
+  activeTab: 'geral' | 'frequencia' | 'perfil' | 'visitantes';
 }
 
 const { title, activeTab } = Astro.props;
@@ -33,7 +33,8 @@ if (userRole === 'ADMIN' || userRole === 'COORDENADOR') {
 const tabs = [
   { id: 'geral', label: 'Board Geral', icon: LayoutDashboard, href: `/relatorios${filterParams}` },
   { id: 'frequencia', label: 'Engajamento', icon: Activity, href: `/relatorios/frequencia${filterParams}` },
-  { id: 'perfil', label: 'Perfil de Membros', icon: Users, href: `/relatorios/perfil${filterParams}` }
+  { id: 'perfil', label: 'Perfil de Membros', icon: Users, href: `/relatorios/perfil${filterParams}` },
+  { id: 'visitantes', label: 'Visitantes', icon: Heart, href: `/relatorios/visitantes${filterParams}` }
 ];
 ---
 
