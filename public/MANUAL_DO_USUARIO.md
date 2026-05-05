@@ -45,8 +45,8 @@ O sistema possui 5 tipos de usuário. Cada um tem permissões diferentes:
 |---|---|---|
 | **Administrador** | Gestor geral do sistema | Acesso total: cria células, membros, coordenadores. Visualiza todos os relatórios. Não é vinculado a células. |
 | **Coordenador** | Supervisiona várias células | Gerencia células e membros. Acessa relatórios gerais. Pode criar e editar avisos. |
-| **Líder** | Responsável por uma célula | Registra presenças, adiciona membros à sua célula e acompanha o engajamento do seu grupo. |
-| **Líder em Treinamento** | Futuro líder em preparação | Mesmas funções do Líder, porém só pode cadastrar novos membros com cargo "Membro". |
+| **Líder** | Responsável por uma célula | Registra presenças, **cadastra visitantes**, adiciona membros à sua célula e acompanha o engajamento do seu grupo. |
+| **Líder em Treinamento** | Futuro líder em preparação | Mesmas funções do Líder, porém só pode cadastrar novos membros com cargo "Membro". Também pode gerir visitantes. |
 | **Membro** | Participante de uma célula | Acesso básico: visualiza sua célula, registra presença quando solicitado e edita seu próprio perfil. |
 
 ---
@@ -204,6 +204,26 @@ Esta funcionalidade centraliza os materiais de estudo da semana.
 
 ---
 
+### 3.9 💖 Gestão de Visitantes
+
+**Caminho:** Menu inferior → **Visitantes**  
+**Disponível para:** Administrador, Coordenador, Líder, Líder em Treinamento
+
+O sistema permite um acompanhamento especial para pessoas que estão conhecendo a comunidade.
+
+#### Cadastrar um visitante
+Existem duas formas de cadastrar um visitante:
+1. **Pela tela de Visitantes:** Toque em **+ Novo Visitante**, preencha o nome, telefone, quem convidou e a célula visitada.
+2. **Pelo Registro de Presença (Rápido):** Durante o registro de uma reunião de célula, toque em **+ Adicionar Visitante** e depois no ícone **"+"** ao lado da lista. Isso abre um modal para cadastro instantâneo sem sair da tela.
+
+#### Histórico e Ranking
+- O sistema mantém o histórico de quantas vezes o visitante esteve presente e em quais células.
+- Administradores podem visualizar o **Ranking de Convites** em Relatórios → Visitantes, identificando quais membros mais trazem novas pessoas.
+
+> **Dica:** Vincular um visitante a uma célula ajuda o líder a acompanhar a integração dessa pessoa no grupo.
+
+---
+
 ## 4. Minha Célula (Visão do Líder)
 
 **Caminho:** Menu inferior → **Minha Célula**  
@@ -233,6 +253,8 @@ Líderes não veem a lista completa de células — apenas a **sua própria cél
 | Criar/editar avisos | ✅ | ✅ | ❌ | ❌ | ❌ |
 | Gerenciar Lições | ✅ | ❌ | ❌ | ❌ | ❌ |
 | Baixar Lição Ativa | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Gerenciar Visitantes | ✅ | ✅ | ✅ | ✅ | ❌ |
+| Ver Ranking de Visitantes | ✅ | ✅ | ❌ | ❌ | ❌ |
 
 \* Apenas na própria célula.  
 \** Só pode criar usuários com cargo "Membro".
