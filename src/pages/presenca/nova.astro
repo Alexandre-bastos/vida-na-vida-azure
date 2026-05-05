@@ -142,6 +142,11 @@ if (Astro.request.method === 'POST') {
     }));
   }
   
+  // Identificar visitantes no formulário
+  const visitorIdsInForm = entries
+    .filter(([key]) => key.startsWith('visitor_'))
+    .map(([key]) => key.replace('visitor_', ''));
+
   // Deduplicar visitantes para evitar erros de constraint única
   const uniqueVisitorIds = [...new Set(visitorIdsInForm)];
 
