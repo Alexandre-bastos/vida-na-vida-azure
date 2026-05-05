@@ -1,6 +1,6 @@
 ---
 import AppLayout from '../../layouts/AppLayout.astro';
-import { ChevronLeft, Camera } from 'lucide-react';
+import { ChevronLeft, Camera, Users, Heart } from 'lucide-react';
 
 import prisma from '../../lib/prisma';
 import { uploadFile } from '../../lib/storage';
@@ -413,7 +413,7 @@ if (Astro.request.method === 'POST') {
     
     if (noVisitorsMsg) noVisitorsMsg.style.display = 'none';
     
-    const clone = (visitorTemplate as HTMLTemplateElement).content.cloneNode(true) as DocumentFragment;
+    const clone = visitorTemplate.content.cloneNode(true);
     const row = clone.querySelector('.visitor-row');
     const tempId = 'new_' + Math.random().toString(36).substr(2, 9);
     
