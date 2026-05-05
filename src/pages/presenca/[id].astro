@@ -1,6 +1,6 @@
 ---
 import AppLayout from '../../layouts/AppLayout.astro';
-import { ChevronLeft, Edit, Calendar, MapPin, Users } from 'lucide-react';
+import { ChevronLeft, Edit, Calendar, MapPin, Users, Heart } from 'lucide-react';
 import prisma from '../../lib/prisma';
 
 const user = Astro.locals.user;
@@ -15,6 +15,7 @@ const meeting = await prisma.meeting.findUnique({
   include: {
     cell: true,
     presences: {
+      include: { user: true },
       orderBy: { user: { name: 'asc' } }
     },
     visitorPresences: {
