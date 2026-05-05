@@ -26,7 +26,7 @@ if (Astro.request.method === 'POST') {
       const m = await prisma.meeting.findUnique({ where: { id: meetingId } });
       if (m && (isAdmin || isCoordinator || (isLeader && m.cellId && (await prisma.cell.findFirst({ where: { id: m.cellId, leaderId: userId } }))))) {
         await prisma.presence.deleteMany({ where: { meetingId } });
-        await prisma.visitor.deleteMany({ where: { meetingId } });
+        await prisma.visitorattendance.deleteMany({ where: { meetingId } });
         await prisma.meeting.delete({ where: { id: meetingId } });
         return Astro.redirect(`/presenca?deleted=1`);
       }
@@ -70,7 +70,7 @@ const meetingsListRaw = await prisma.meeting.findMany({
   where: whereClause,
   include: { 
     presences: { select: { isPresent: true } },
-    _count: { select: { visitors: true } }, 
+    _count: { select: { visitorPresences: true } }, 
     cell: true 
   },
   orderBy: { date: 'desc' },
@@ -87,7 +87,7 @@ const meetingsList = meetingsListRaw.map(m => {
       total,
       presentes,
       ausentes,
-      visitors: m._count.visitors
+      visitors: m._count.visitorPresences
     }
   };
 });
