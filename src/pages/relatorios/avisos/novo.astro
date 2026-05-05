@@ -99,14 +99,14 @@ if (Astro.request.method === 'POST') {
     <script>
       import { compressImage } from '../../../lib/image-compression';
       
-      const imageInput = document.getElementById('image-input') as HTMLInputElement;
+      const imageInput = document.getElementById('image-input');
       const fileNameDisplay = document.getElementById('file-name');
       const imagePreviewContainer = document.getElementById('image-preview-container');
-      const imagePreview = document.getElementById('image-preview') as HTMLImageElement;
+      const imagePreview = document.getElementById('image-preview');
       const imageLoading = document.getElementById('image-loading');
       
-      imageInput?.addEventListener('change', async (e: any) => {
-        const target = e.target as HTMLInputElement;
+      imageInput?.addEventListener('change', async (e) => {
+        const target = e.target;
         if (!target.files || target.files.length === 0) return;
 
         const file = target.files[0];
@@ -117,7 +117,7 @@ if (Astro.request.method === 'POST') {
           if (imageLoading) imageLoading.classList.remove('hidden');
           
           const reader = new FileReader();
-          reader.onload = (re: any) => {
+          reader.onload = (re) => {
             imagePreview.src = re.target.result;
           };
           reader.readAsDataURL(file);

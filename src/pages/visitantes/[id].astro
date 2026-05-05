@@ -239,7 +239,7 @@ const members = await prisma.user.findMany({
   // Máscara de telefone
   const phoneInputs = document.querySelectorAll('.phone-mask');
   phoneInputs.forEach(input => {
-    input.addEventListener('input', (e: any) => {
+    input.addEventListener('input', (e) => {
       let value = e.target.value.replace(/\D/g, '');
       if (value.length > 11) value = value.slice(0, 11);
       if (value.length > 10) {

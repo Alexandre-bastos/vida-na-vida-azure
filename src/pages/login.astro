@@ -124,8 +124,8 @@ if (user) return Astro.redirect('/');
 
       // ---------- Login com Credenciais (disparado pelo botão ou Enter) ----------
       async function handleLogin() {
-        const email = (document.getElementById('email') as HTMLInputElement).value;
-        const password = (document.getElementById('password') as HTMLInputElement).value;
+        const email = document.getElementById('email').value;
+        const password = document.getElementById('password').value;
 
         // Limpar erros anteriores
         clearErrors();
@@ -145,7 +145,7 @@ if (user) return Astro.redirect('/');
         }
         if (hasErrors) return;
 
-        const btn = document.getElementById('login-submit') as HTMLButtonElement;
+        const btn = document.getElementById('login-submit');
         try {
           if (btn) {
             btn.innerHTML = '<span class="loading">Autenticando...</span>';

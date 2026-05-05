@@ -114,17 +114,17 @@ const canAddVisitors = isAdmin || isCoordinator || isLider;
 </AppLayout>
 
 <script>
-	const searchInput = document.getElementById('visitor-search') as HTMLInputElement;
+	const searchInput = document.getElementById('visitor-search');
 	const visitorCards = document.querySelectorAll('.visitor-card');
 
 	searchInput?.addEventListener('input', (e) => {
-		const term = (e.target as HTMLInputElement).value.toLowerCase();
+		const term = e.target.value.toLowerCase();
 		visitorCards.forEach(card => {
-			const name = (card as HTMLElement).dataset.name || '';
+			const name = card.dataset.name || '';
 			if (name.includes(term)) {
-				(card as HTMLElement).style.display = 'flex';
+				card.style.display = 'flex';
 			} else {
-				(card as HTMLElement).style.display = 'none';
+				card.style.display = 'none';
 			}
 		});
 	});

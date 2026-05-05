@@ -284,13 +284,13 @@ const isDefaultLogin = user.email === 'vidanavida';
   // Compressão de Imagem
   import { compressImage } from '../lib/image-compression';
 
-  const imageInput = document.getElementById('image-input') as HTMLInputElement;
-  const previewImg = document.getElementById('preview') as HTMLImageElement;
+  const imageInput = document.getElementById('image-input');
+  const previewImg = document.getElementById('preview');
   const fallbackIcon = document.getElementById('fallback-icon');
   const imageLoading = document.getElementById('image-loading');
 
-  imageInput?.addEventListener('change', async (e: any) => {
-    const target = e.target as HTMLInputElement;
+  imageInput?.addEventListener('change', async (e) => {
+    const target = e.target;
     if (!target.files || target.files.length === 0) return;
 
     const file = target.files[0];
@@ -300,7 +300,7 @@ const isDefaultLogin = user.email === 'vidanavida';
     
     // Preview imediato
     const reader = new FileReader();
-    reader.onload = (re: any) => {
+    reader.onload = (re) => {
       if (previewImg) {
         previewImg.src = re.target.result;
         previewImg.classList.remove('hidden');
