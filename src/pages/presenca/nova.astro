@@ -355,6 +355,7 @@ if (Astro.request.method === 'POST') {
   </div>
 
   <script type="module">
+  console.log('Script presenca/nova carregado');
   import { compressImage } from '../../lib/image-compression';
 
   const postForm = document.getElementById('presenca-form');
@@ -415,8 +416,16 @@ if (Astro.request.method === 'POST') {
   const visitorTemplate = document.getElementById('visitor-row-template');
   const noVisitorsMsg = document.getElementById('no-visitors-msg');
 
+  console.log('Botão adicionar:', addVisitorBtn);
+  console.log('Container visitantes:', visitorsContainer);
+  console.log('Template:', visitorTemplate);
+
   addVisitorBtn?.addEventListener('click', () => {
-    if (!visitorsContainer || !visitorTemplate) return;
+    console.log('Clique no botão adicionar visitante');
+    if (!visitorsContainer || !visitorTemplate) {
+      console.error('Container ou Template não encontrados!');
+      return;
+    }
     
     if (noVisitorsMsg) noVisitorsMsg.style.display = 'none';
     
