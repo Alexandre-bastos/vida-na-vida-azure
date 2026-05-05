@@ -41,7 +41,14 @@ let selectedDate = qDate ? new Date(qDate) : new Date();
 let meeting = null;
 let meetingPresencesMap = new Map();
 if (qMeetingId) {
-  meeting = await prisma.meeting.findUnique({ where: { id: qMeetingId }, include: { presences: { include: { user: true } }, visitors: true, cell: true } });
+  meeting = await prisma.meeting.findUnique({ 
+    where: { id: qMeetingId }, 
+    include: { 
+      presences: { include: { user: true } }, 
+      visitorPresences: { include: { visitor: true } }, 
+      cell: true 
+    } 
+  });
   if (meeting) {
     selectedCellId = meeting.cellId;
     selectedDate = meeting.date;
@@ -417,15 +424,15 @@ if (Astro.request.method === 'POST') {
     const row = clone.querySelector('.visitor-row');
     const tempId = 'new_' + Math.random().toString(36).substr(2, 9);
     
-    const selectVisitor = row?.querySelector('.visitor-select') as HTMLSelectElement;
-    const selectBrought = row?.querySelector('.brought-by-select') as HTMLSelectElement;
+    const selectVisitor = row?.querySelector('.visitor-select');
+    const selectBrought = row?.querySelector('.brought-by-select');
     
     if (selectVisitor) selectVisitor.name = `visitor_${tempId}`;
     if (selectBrought) selectBrought.name = `broughtBy_${tempId}`;
     
     // Atualizar IDs reais quando o visitante for selecionado
     selectVisitor?.addEventListener('change', (e) => {
-      const realId = (e.target as HTMLSelectElement).value;
+      const realId = e.target.value;
       if (realId) {
         selectVisitor.name = `visitor_${realId}`;
         if (selectBrought) selectBrought.name = `broughtBy_${realId}`;
@@ -433,7 +440,7 @@ if (Astro.request.method === 'POST') {
     });
 
     row?.querySelector('.remove-visitor')?.addEventListener('click', () => {
-      (row as HTMLElement).remove();
+      row.remove();
       if (visitorsContainer.querySelectorAll('.visitor-row').length === 0 && noVisitorsMsg) {
         noVisitorsMsg.style.display = 'block';
       }
