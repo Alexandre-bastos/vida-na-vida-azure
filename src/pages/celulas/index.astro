@@ -31,8 +31,9 @@ const cells = await prisma.cell.findMany({
 	where: whereClause,
 	include: {
 		leader: true,
-		_count: {
-			select: { memberships: true }
+		memberships: {
+			where: { endDate: null },
+			select: { id: true }
 		}
 	},
 	orderBy: { name: 'asc' }
@@ -82,7 +83,7 @@ const cells = await prisma.cell.findMany({
 								</div>
 							</div>
 							<div class="bg-gray-50 px-3 py-1 rounded-full text-[10px] font-bold text-gray-400 uppercase tracking-wider">
-								{cell._count.memberships} membros
+								{cell.memberships.length} membros
 							</div>
 						</div>
 

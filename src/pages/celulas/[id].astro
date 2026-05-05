@@ -185,90 +185,72 @@ if (Astro.request.method === 'POST') {
 			)}
 		</header>
 
-		<div class="grid gap-3">
-			{cell.memberships.length === 0 ? (
-				<div class="bg-gray-50 rounded-3xl p-8 text-center border border-dashed border-gray-200">
-					<p class="text-xs text-gray-400">Nenhum membro vinculado a esta célula.</p>
-				</div>
-			) : (
-				cell.memberships.map((membership) => (
-					<div class="bg-white p-4 rounded-2xl shadow-sm border border-gray-50 flex items-center justify-between group">
-						<div class="flex items-center gap-3">
-							<div class="w-10 h-10 rounded-full bg-brand-bg flex items-center justify-center text-brand-primary overflow-hidden border border-gray-100">
-								{membership.user.image ? (
-									<img src={membership.user.image} alt={membership.user.name || ''} class="w-full h-full object-cover" />
-								) : (
-									<span class="font-bold text-sm">{membership.user.name?.charAt(0)}</span>
-								)}
-							</div>
-							<div class="flex flex-col">
-								<span class="font-medium text-sm text-brand-dark">{membership.user.name}</span>
-								<span class="text-xs text-gray-400">{membership.user.role}</span>
-							</div>
-						</div>
-						{canManageCell && (
-							<form method="POST" class="flex items-center gap-2">
-								<input type="hidden" name="action" value="remove_member" />
-								<input type="hidden" name="membershipId" value={membership.id} />
-								<button type="submit" class="text-red-500 hover:underline text-xs">Remover</button>
-							</form>
-						)}
+		{/* Informações da Célula */}
+		<section class="bg-white p-6 rounded-[2.5rem] shadow-sm border border-gray-100 space-y-4">
+			<div class="flex items-center justify-between">
+				<div class="flex items-center gap-3">
+					<div class="w-12 h-12 bg-blue-50 rounded-2xl flex items-center justify-center text-brand-primary">
+						<Users size={24} />
 					</div>
-				))
-			)}
-		</div>
-
-		{/* Formulário para adicionar membro - visível apenas para quem pode gerenciar */}
-		{canManageCell && (
-			<form method="POST" class="mt-4 flex flex-col sm:flex-row gap-3">
-				<input type="hidden" name="action" value="add_member" />
-				<select name="userId" class="w-full sm:flex-1 px-4 py-3 rounded-2xl border border-gray-100 bg-gray-50 text-sm appearance-none truncate">
-					<option value="">Selecione um usuário...</option>
-					{availableUsers.map(u => (
-						<option value={u.id}>{u.name} ({u.role})</option>
-					))}
-				</select>
-				<button type="submit" class="w-full sm:w-auto px-6 py-3 rounded-2xl bg-brand-primary text-white text-sm font-bold">Adicionar</button>
-			</form>
-		)}
+					<div>
+						<p class="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Responsável</p>
+						<p class="text-sm font-bold text-brand-dark">{cell.leader?.name || 'Não definido'}</p>
+					</div>
+				</div>
+				<div class="bg-brand-light/10 px-3 py-1 rounded-full text-[10px] font-bold text-brand-primary uppercase">
+					{cell.memberships.length} Membros
 				</div>
 			</div>
 
-			<div class="flex items-start gap-3 mt-4 pt-4 border-t border-gray-50">
-				<div class="w-8 h-8 rounded-full bg-gray-50 flex items-center justify-center text-gray-400 shrink-0">
-					<MapPin size={16} />
+			<div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4 border-t border-gray-50">
+				<div class="flex items-start gap-3">
+					<div class="w-8 h-8 rounded-full bg-gray-50 flex items-center justify-center text-gray-400 shrink-0">
+						<MapPin size={16} />
+					</div>
+					<div>
+						<p class="text-[9px] text-gray-400 font-bold uppercase">Endereço</p>
+						<p class="text-xs font-semibold text-brand-dark">{cell.address || 'Sem endereço'}</p>
+						{cell.neighborhood && <p class="text-[10px] text-gray-500 mt-0.5">{cell.neighborhood}</p>}
+					</div>
 				</div>
-				<div>
-					<p class="text-[9px] text-gray-400 font-bold uppercase">Endereço</p>
-					<p class="text-xs font-semibold text-brand-dark">{cell.address || 'Sem endereço cadastrado'}</p>
-					{cell.neighborhood && <p class="text-[10px] text-gray-500 mt-1">Bairro: {cell.neighborhood}</p>}
+				<div class="flex items-start gap-3">
+					<div class="w-8 h-8 rounded-full bg-gray-50 flex items-center justify-center text-gray-400 shrink-0">
+						<CalendarIcon size={16} />
+					</div>
+					<div>
+						<p class="text-[9px] text-gray-400 font-bold uppercase">Encontros</p>
+						<p class="text-xs font-semibold text-brand-dark">
+							{cell.dayOfWeek !== null ? ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'][cell.dayOfWeek] : 'Não definido'}
+						</p>
+						{cell.time && <p class="text-[10px] text-gray-500 mt-0.5">às {cell.time}</p>}
+					</div>
 				</div>
 			</div>
 		</section>
 
 		<!-- Definir Líder da Célula -->
 		{(isAdmin || isCoordinator) && (
-		<section class="bg-white p-6 rounded-[2.5rem] shadow-sm border border-gray-100">
-			<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-				<div>
-					<h3 class="font-bold text-sm">Definir Líder</h3>
-					<p class="text-xs text-gray-400">Escolha o líder responsável por esta célula.</p>
+			<section class="bg-white p-6 rounded-[2.5rem] shadow-sm border border-gray-100">
+				<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+					<div>
+						<h3 class="font-bold text-sm">Definir Líder</h3>
+						<p class="text-xs text-gray-400">Escolha o líder responsável por esta célula.</p>
+					</div>
+					<form method="POST" class="flex flex-col sm:flex-row w-full sm:w-auto gap-3">
+						<input type="hidden" name="action" value="set_leader" />
+						<select name="leaderId" class="w-full sm:flex-1 px-4 py-3 rounded-2xl border border-gray-100 bg-gray-50 text-sm appearance-none truncate">
+							<option value="">Selecione um líder...</option>
+							{[...cell.memberships.map(m => m.user), ...availableUsers]
+								.filter(u => u.role === 'LIDER')
+								.map(u => (
+								<option value={u.id} selected={cell.leader?.id === u.id}>{u.name} (Líder)</option>
+							))}
+						</select>
+						<button type="submit" class="w-full sm:w-auto px-6 py-3 rounded-2xl bg-brand-primary text-white text-sm font-bold shrink-0">Definir</button>
+					</form>
 				</div>
-				<form method="POST" class="flex flex-col sm:flex-row w-full sm:w-auto gap-3">
-					<input type="hidden" name="action" value="set_leader" />
-					<select name="leaderId" class="w-full sm:flex-1 px-4 py-3 rounded-2xl border border-gray-100 bg-gray-50 text-sm appearance-none truncate">
-						<option value="">Selecione um líder...</option>
-						{[...cell.memberships.map(m => m.user), ...availableUsers]
-                            .filter(u => u.role === 'LIDER')
-                            .map(u => (
-							<option value={u.id} selected={cell.leader?.id === u.id}>{u.name} (Líder)</option>
-						))}
-					</select>
-					<button type="submit" class="w-full sm:w-auto px-6 py-3 rounded-2xl bg-brand-primary text-white text-sm font-bold shrink-0">Definir</button>
-				</form>
-			</div>
-		</section>
-			)}
+			</section>
+		)}
 
 		<!-- Lista de Membros -->
 		<section class="space-y-4">
