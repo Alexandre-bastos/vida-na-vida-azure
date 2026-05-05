@@ -109,6 +109,7 @@ if (Astro.request.method === 'POST') {
   if (existingMeetingId) {
     await prisma.meeting.update({ where: { id: existingMeetingId }, data: { date: meetingDate, topic, report, photoUrl: photoUrl || undefined, cellId } });
     await prisma.presence.deleteMany({ where: { meetingId: existingMeetingId } });
+    await prisma.visitorattendance.deleteMany({ where: { meetingId: existingMeetingId } });
   } else {
     // Check if one already exists for this day/cell
     const existing = await prisma.meeting.findFirst({ where: { cellId, date: { gte: startOfDay, lt: endOfDay } } });
@@ -141,12 +142,10 @@ if (Astro.request.method === 'POST') {
     }));
   }
   
-  // Create visitor presences
-  const visitorIdsInForm = entries
-    .filter(([key]) => key.startsWith('visitor_'))
-    .map(([key]) => key.replace('visitor_', ''));
+  // Deduplicar visitantes para evitar erros de constraint única
+  const uniqueVisitorIds = [...new Set(visitorIdsInForm)];
 
-  for (const vid of visitorIdsInForm) {
+  for (const vid of uniqueVisitorIds) {
     const broughtById = formData.get(`broughtBy_${vid}`)?.toString() || null;
     presencePromises.push(prisma.visitorattendance.create({
       data: {
