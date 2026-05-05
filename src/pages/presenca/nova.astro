@@ -451,7 +451,7 @@ if (Astro.request.method === 'POST') {
 
   // Delegar remoção para itens existentes (no modo edição)
   visitorsContainer?.addEventListener('click', (e) => {
-    const target = e.target as HTMLElement;
+    const target = e.target;
     if (target.classList.contains('remove-visitor') || target.parentElement?.classList.contains('remove-visitor')) {
       const row = target.closest('.visitor-row');
       row?.remove();
