@@ -1,0 +1,205 @@
+---
+import AppLayout from '../../layouts/AppLayout.astro';
+import { ChevronLeft, Plus, Search } from 'lucide-react';
+
+import prisma from '../../lib/prisma';
+
+const user = Astro.locals.user;
+if (!user) {
+  return Astro.redirect('/login');
+}
+
+const userId = (user as any)?.id;
+const userRole = (user as any)?.role || 'MEMBRO';
+const isAdmin = userRole === 'ADMIN';
+const isCoordinator = userRole === 'COORDENADOR';
+const isLeader = userRole === 'LIDER' || userRole === 'LIDER_TREINAMENTO';
+
+// Excluir encontro
+if (Astro.request.method === 'POST') {
+  const formData = await Astro.request.formData();
+  const action = formData.get('action')?.toString();
+  
+  if (action === 'delete_meeting') {
+    const meetingId = formData.get('meetingId')?.toString();
+    if (meetingId) {
+      const m = await prisma.meeting.findUnique({ where: { id: meetingId } });
+      if (m && (isAdmin || isCoordinator || (isLeader && m.cellId && (await prisma.cell.findFirst({ where: { id: m.cellId, leaderId: userId } }))))) {
+        await prisma.presence.deleteMany({ where: { meetingId } });
+        await prisma.visitor.deleteMany({ where: { meetingId } });
+        await prisma.meeting.delete({ where: { id: meetingId } });
+        return Astro.redirect(`/presenca?deleted=1`);
+      }
+    }
+  }
+}
+
+// Filtros GET
+const url = new URL(Astro.request.url);
+const qCellId = url.searchParams.get('cellId') || '';
+const qDate = url.searchParams.get('date') || '';
+const qSaved = url.searchParams.get('saved') || null;
+const qDeleted = url.searchParams.get('deleted') || null;
+
+// Células disponíveis
+let availableCells = [];
+if (isAdmin || isCoordinator) {
+  availableCells = await prisma.cell.findMany({ orderBy: { name: 'asc' } });
+} else if (isLeader) {
+  availableCells = await prisma.cell.findMany({ where: { leaderId: userId }, orderBy: { name: 'asc' } });
+}
+
+// Busca de encontros com filtros
+let whereClause: any = {};
+
+if (qCellId) {
+  whereClause.cellId = qCellId;
+} else if (isLeader && !isAdmin && !isCoordinator) {
+  whereClause.cellId = { in: availableCells.map(c => c.id) };
+}
+
+if (qDate) {
+  const startDate = new Date(qDate);
+  startDate.setHours(0, 0, 0, 0);
+  const endDate = new Date(qDate);
+  endDate.setHours(23, 59, 59, 999);
+  whereClause.date = { gte: startDate, lt: endDate };
+}
+
+const meetingsListRaw = await prisma.meeting.findMany({
+  where: whereClause,
+  include: { 
+    presences: { select: { isPresent: true } },
+    _count: { select: { visitors: true } }, 
+    cell: true 
+  },
+  orderBy: { date: 'desc' },
+  take: 50
+});
+
+const meetingsList = meetingsListRaw.map(m => {
+  const total = m.presences.length;
+  const presentes = m.presences.filter(p => p.isPresent).length;
+  const ausentes = total - presentes;
+  return {
+    ...m,
+    stats: {
+      total,
+      presentes,
+      ausentes,
+      visitors: m._count.visitors
+    }
+  };
+});
+---
+
+<AppLayout title="Presenças">
+  <div class="space-y-6 max-w-3xl mx-auto">
+    <header class="flex items-center justify-between">
+      <div class="flex items-center gap-4">
+        <a href="/" class="w-10 h-10 rounded-lg bg-white shadow flex items-center justify-center hover:bg-gray-50 transition-colors">
+          <ChevronLeft size={18} />
+        </a>
+        <div>
+          <h1 class="text-xl font-bold">Registro de Presenças</h1>
+          <p class="text-sm text-gray-500">Acompanhe e gerencie os encontros das células.</p>
+        </div>
+      </div>
+      <a href="/presenca/nova" class="flex items-center gap-2 bg-brand-primary text-white px-4 py-2 rounded-2xl shadow-sm hover:brightness-110 transition-all font-medium text-sm">
+        <Plus size={18} />
+        <span class="hidden sm:inline">Nova Presença</span>
+      </a>
+    </header>
+
+    {qSaved && (
+      <div class="bg-green-50 border border-green-100 text-green-800 p-3 rounded-2xl flex items-center justify-between shadow-sm">
+        <span>✅ Registro salvo com sucesso.</span>
+        <button onclick="this.parentElement.remove()" class="text-green-600 hover:text-green-800 px-2">&times;</button>
+      </div>
+    )}
+    {qDeleted && (
+      <div class="bg-red-50 border border-red-100 text-red-800 p-3 rounded-2xl flex items-center justify-between shadow-sm">
+        <span>🗑️ Encontro excluído.</span>
+        <button onclick="this.parentElement.remove()" class="text-red-600 hover:text-red-800 px-2">&times;</button>
+      </div>
+    )}
+
+    <section class="bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
+      <form method="GET" class="flex flex-col sm:flex-row gap-3">
+        <div class="flex-1">
+          <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1 ml-1">Filtrar por Célula</label>
+          <select name="cellId" class="w-full px-4 py-2.5 rounded-2xl border bg-gray-50 text-sm focus:ring-2 focus:ring-brand-primary/20 outline-none transition-all">
+            <option value="">Todas as minhas células</option>
+            {availableCells.map(c => (
+              <option value={c.id} selected={qCellId === c.id}>{c.name}</option>
+            ))}
+          </select>
+        </div>
+        <div class="flex-1">
+          <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1 ml-1">Filtrar por Data</label>
+          <input type="date" name="date" value={qDate} class="w-full px-4 py-2.5 rounded-2xl border bg-gray-50 text-sm focus:ring-2 focus:ring-brand-primary/20 outline-none transition-all" />
+        </div>
+        <div class="flex items-end">
+          <button type="submit" class="w-full sm:w-auto h-[42px] px-6 rounded-2xl bg-gray-100 text-gray-700 font-medium hover:bg-gray-200 transition-colors flex items-center justify-center gap-2">
+            <Search size={16} />
+            Buscar
+          </button>
+        </div>
+      </form>
+    </section>
+
+    <section class="space-y-3">
+      {meetingsList.length === 0 ? (
+        <div class="bg-white p-8 rounded-2xl text-center shadow-sm border border-gray-100">
+          <div class="w-16 h-16 rounded-full bg-gray-50 flex items-center justify-center mx-auto mb-4">
+            <Search size={24} class="text-gray-400" />
+          </div>
+          <h3 class="font-bold text-gray-800 mb-1">Nenhum encontro encontrado</h3>
+          <p class="text-sm text-gray-500">Modifique os filtros ou cadastre uma nova presença.</p>
+        </div>
+      ) : (
+        <div class="space-y-3">
+          {meetingsList.map(m => (
+            <div class="bg-white p-4 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between border border-gray-100 shadow-sm gap-4 hover:border-gray-300 transition-colors">
+              <div class="flex gap-4 items-start">
+                {m.photoUrl && (
+                  <div class="w-16 h-16 sm:w-20 sm:h-20 rounded-xl overflow-hidden shrink-0 shadow-sm border border-gray-100">
+                    <img src={m.photoUrl} alt="Foto do encontro" class="w-full h-full object-cover" />
+                  </div>
+                )}
+                <div>
+                  <div class="flex items-center gap-2 mb-1">
+                    <span class="px-2 py-0.5 rounded-md bg-brand-light/30 text-brand-dark text-xs font-bold tracking-wider">{m.cell?.name}</span>
+                    <span class="text-xs text-gray-400 font-medium">{new Date(m.date).toLocaleDateString()}</span>
+                  </div>
+                  <div class="font-bold text-gray-800 text-lg">{m.topic || 'Encontro da Célula'}</div>
+                  <div class="text-sm text-gray-500 mt-1 flex flex-wrap gap-3">
+                    <span class="flex items-center gap-1 font-medium text-green-600 bg-green-50 px-2 py-0.5 rounded-md">✅ {m.stats.presentes} presentes</span>
+                    {m.stats.ausentes > 0 && <span class="flex items-center gap-1 font-medium text-red-500 bg-red-50 px-2 py-0.5 rounded-md">❌ {m.stats.ausentes} ausentes</span>}
+                    {m.stats.visitors > 0 && <span class="flex items-center gap-1 font-medium text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md">👋 {m.stats.visitors} visitantes</span>}
+                  </div>
+                </div>
+              </div>
+              <div class="flex flex-wrap items-center justify-end gap-2 border-t pt-3 sm:border-0 sm:pt-0">
+                <a href={`/presenca/${m.id}`} class="text-center px-4 py-2 rounded-xl bg-gray-50 text-gray-700 text-sm font-medium hover:bg-gray-100 transition-colors">
+                  Ver Detalhes
+                </a>
+                <a href={`/presenca/nova?meetingId=${m.id}`} class="text-center px-4 py-2 rounded-xl bg-gray-50 text-gray-700 text-sm font-medium hover:bg-gray-100 transition-colors">
+                  Editar
+                </a>
+                <form method="POST" class="m-0" onsubmit="return confirm('Tem certeza que deseja excluir este registro?');">
+                  <input type="hidden" name="action" value="delete_meeting" />
+                  <input type="hidden" name="meetingId" value={m.id} />
+                  <button type="submit" class="text-center px-4 py-2 rounded-xl bg-red-50 text-red-600 text-sm font-medium hover:bg-red-100 transition-colors">
+                    Excluir
+                  </button>
+                </form>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
+  </div>
+</AppLayout>
+

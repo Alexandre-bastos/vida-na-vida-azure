@@ -1,0 +1,108 @@
+---
+import ReportLayout from '../../../layouts/ReportLayout.astro';
+
+import prisma from '../../../lib/prisma';
+import { Plus, Edit2, Trash2, Megaphone, Eye, EyeOff } from 'lucide-react';
+
+const user = Astro.locals.user;
+if (!user) return Astro.redirect('/login');
+
+const userRole = (user as any)?.role;
+if (userRole !== 'ADMIN' && userRole !== 'COORDENADOR') {
+  return Astro.redirect('/');
+}
+
+// Lógica de Deletar/Mudar Status
+if (Astro.request.method === 'POST') {
+  const formData = await Astro.request.formData();
+  const action = formData.get('action')?.toString();
+  const id = formData.get('id')?.toString();
+
+  if (action === 'delete' && id) {
+    await prisma.notice.delete({ where: { id } });
+  } else if (action === 'toggle' && id) {
+    const notice = await prisma.notice.findUnique({ where: { id } });
+    if (notice) {
+      await prisma.notice.update({
+        where: { id },
+        data: { active: !notice.active }
+      });
+    }
+  }
+  return Astro.redirect('/relatorios/avisos');
+}
+
+const notices = await prisma.notice.findMany({
+  orderBy: { createdAt: 'desc' }
+});
+---
+
+<ReportLayout title="Gestão de Avisos" activeTab="geral">
+  <div class="flex items-center justify-between mb-6">
+    <div>
+      <h2 class="text-xl font-bold text-brand-dark">Avisos da Liderança</h2>
+      <p class="text-xs text-gray-500">Gerencie os informativos que aparecem na tela inicial.</p>
+    </div>
+    <a href="/relatorios/avisos/novo" class="flex items-center gap-2 bg-brand-primary text-white px-4 py-2.5 rounded-2xl shadow-sm hover:brightness-110 transition-all font-bold text-sm">
+      <Plus size={18} />
+      Novo Aviso
+    </a>
+  </div>
+
+  <div class="grid gap-4">
+    {notices.length === 0 ? (
+      <div class="bg-white p-12 rounded-[2.5rem] text-center border border-dashed border-gray-200">
+        <div class="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4 text-gray-300">
+          <Megaphone size={32} />
+        </div>
+        <h3 class="font-bold text-gray-800">Nenhum aviso criado</h3>
+        <p class="text-sm text-gray-500 max-w-xs mx-auto mt-1">Crie seu primeiro comunicado para que os membros vejam na tela inicial.</p>
+      </div>
+    ) : (
+      notices.map(notice => (
+        <div class={`bg-white p-5 rounded-3xl border shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-all ${notice.active ? 'border-gray-100' : 'border-gray-100 opacity-60 grayscale'}`}>
+          <div class="flex items-start gap-4">
+            <div class={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 ${notice.active ? 'bg-brand-bg text-brand-primary' : 'bg-gray-100 text-gray-400'}`}>
+              <Megaphone size={24} />
+            </div>
+            <div>
+              <div class="flex items-center gap-2 mb-1">
+                <h3 class="font-bold text-brand-dark">{notice.title}</h3>
+                {notice.active ? (
+                  <span class="px-2 py-0.5 rounded-md bg-green-50 text-green-600 text-[10px] font-black uppercase tracking-tighter">Ativo</span>
+                ) : (
+                  <span class="px-2 py-0.5 rounded-md bg-gray-100 text-gray-500 text-[10px] font-black uppercase tracking-tighter">Inativo</span>
+                )}
+              </div>
+              <p class="text-xs text-gray-500 line-clamp-1">{notice.content}</p>
+              <p class="text-[10px] text-gray-400 mt-1 uppercase font-bold tracking-widest">{new Date(notice.createdAt).toLocaleDateString('pt-BR')}</p>
+            </div>
+          </div>
+
+          <div class="flex items-center gap-2 justify-end">
+            <form method="POST" class="m-0">
+              <input type="hidden" name="action" value="toggle" />
+              <input type="hidden" name="id" value={notice.id} />
+              <button type="submit" title={notice.active ? "Desativar" : "Ativar"} class="w-10 h-10 rounded-xl bg-gray-50 text-gray-500 flex items-center justify-center hover:bg-brand-bg hover:text-brand-primary transition-colors">
+                {notice.active ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </form>
+            
+            <a href={`/relatorios/avisos/${notice.id}`} class="w-10 h-10 rounded-xl bg-gray-50 text-gray-500 flex items-center justify-center hover:bg-brand-bg hover:text-brand-primary transition-colors">
+              <Edit2 size={18} />
+            </a>
+
+            <form method="POST" class="m-0" onsubmit="return confirm('Excluir este aviso permanentemente?')">
+              <input type="hidden" name="action" value="delete" />
+              <input type="hidden" name="id" value={notice.id} />
+              <button type="submit" class="w-10 h-10 rounded-xl bg-red-50 text-red-500 flex items-center justify-center hover:bg-red-500 hover:text-white transition-colors">
+                <Trash2 size={18} />
+              </button>
+            </form>
+          </div>
+        </div>
+      ))
+    )}
+  </div>
+</ReportLayout>
+

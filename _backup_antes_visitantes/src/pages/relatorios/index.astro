@@ -2,8 +2,7 @@
 import ReportLayout from '../../layouts/ReportLayout.astro';
 
 import prisma from '../../lib/prisma';
-import { AlertTriangle, TrendingUp, Users, Map as MapIcon } from 'lucide-react';
-import NeighborhoodMap from '../../components/NeighborhoodMap';
+import { AlertTriangle, TrendingUp, Users } from 'lucide-react';
 
 const user = Astro.locals.user;
 if (!user) return Astro.redirect('/login');
@@ -25,60 +24,15 @@ const endDate = endParam ? new Date(endParam) : new Date();
 const cellFilter = cellId ? { id: cellId } : {};
 const cellMembershipFilter = cellId ? { cellHistory: { some: { cellId, endDate: null } } } : {};
 
-// Dados para o Mapa
-const mapCells = await prisma.cell.findMany({
-  where: { ...cellFilter, latitude: { not: null } },
-  select: { id: true, name: true, latitude: true, longitude: true, leader: { select: { name: true } } }
-});
-
-const mapMembers = await prisma.user.groupBy({
-  by: ['neighborhood', 'latitude', 'longitude'],
-  where: { 
-    active: true, 
-    role: { notIn: ['ADMIN', 'COORDENADOR'] }, 
-    latitude: { not: null },
-    ...cellMembershipFilter 
-  },
-  _count: true
-});
-
-const cellPoints = mapCells.map(c => ({
-  id: c.id,
-  name: c.name,
-  latitude: c.latitude!,
-  longitude: c.longitude!,
-  leaderName: c.leader?.name || undefined
-}));
-
-const memberClusters = mapMembers.map(m => ({
-  neighborhood: m.neighborhood || 'Desconhecido',
-  count: m._count,
-  latitude: m.latitude!,
-  longitude: m.longitude!
-}));
-
 // Buscar Indicadores Principais
 const activeCellsCount = await prisma.cell.count({ where: cellFilter });
-const activeMembersCount = await prisma.user.count({ 
-  where: { 
-    active: true, 
-    role: { notIn: ['ADMIN', 'COORDENADOR'] },
-    ...cellMembershipFilter 
-  } 
-});
-const inactiveMembersCount = await prisma.user.count({ 
-  where: { 
-    active: false, 
-    role: { notIn: ['ADMIN', 'COORDENADOR'] },
-    ...cellMembershipFilter 
-  } 
-});
+const activeMembersCount = await prisma.user.count({ where: { active: true, ...cellMembershipFilter } });
+const inactiveMembersCount = await prisma.user.count({ where: { active: false, ...cellMembershipFilter } });
 
 // Novos Membros no período selecionado
 const newMembersCount = await prisma.user.count({
   where: {
     active: true,
-    role: { notIn: ['ADMIN', 'COORDENADOR'] },
     createdAt: {
       gte: startDate || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
       lte: endDate
@@ -188,32 +142,6 @@ const memberNeighborhoods = await prisma.user.groupBy({
           <span class="w-6 h-6 flex items-center justify-center rounded-full bg-brand-bg text-brand-primary text-xs font-bold">{cell.memberships.length}</span>
         </div>
       ))}
-    </div>
-  </section>
-
-  <!-- Mapa Estratégico -->
-  <section class="bg-white p-6 rounded-[2.5rem] shadow-sm border border-gray-100 overflow-hidden">
-    <div class="flex items-center justify-between mb-6">
-      <div class="flex items-center gap-3">
-        <div class="w-10 h-10 rounded-xl bg-blue-50 text-brand-primary flex items-center justify-center">
-          <MapIcon size={20} />
-        </div>
-        <div>
-          <h3 class="font-bold text-brand-dark">Mapa Estratégico</h3>
-          <p class="text-xs text-gray-400">Distribuição geográfica de células e membros.</p>
-        </div>
-      </div>
-    </div>
-    
-    <div class="rounded-3xl overflow-hidden border border-gray-50 shadow-inner bg-gray-50 min-h-[300px] flex items-center justify-center">
-      {(cellPoints.length > 0 || memberClusters.length > 0) ? (
-        <NeighborhoodMap cells={cellPoints} members={memberClusters} client:only="react" />
-      ) : (
-        <div class="text-center p-8">
-          <p class="text-sm text-gray-400">Aguardando geocodificação dos endereços para exibir o mapa.</p>
-          <p class="text-[10px] text-gray-300 mt-1 uppercase font-bold tracking-widest">Acesse as configurações para processar</p>
-        </div>
-      )}
     </div>
   </section>
 

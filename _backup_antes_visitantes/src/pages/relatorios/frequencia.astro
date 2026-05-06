@@ -1,0 +1,130 @@
+---
+import ReportLayout from '../../layouts/ReportLayout.astro';
+
+import prisma from '../../lib/prisma';
+import SimpleLineChart from '../../components/charts/SimpleLineChart';
+import { Calendar as CalendarIcon, MessageSquare } from 'lucide-react';
+
+const user = Astro.locals.user;
+if (!user) return Astro.redirect('/login');
+
+const userRole = (user as any)?.role;
+if (userRole !== 'ADMIN' && userRole !== 'COORDENADOR') {
+  return Astro.redirect('/');
+}
+
+// Extrair filtros de data
+const url = new URL(Astro.request.url);
+const startParam = url.searchParams.get('startDate');
+const endParam = url.searchParams.get('endDate');
+const cellId = url.searchParams.get('cellId');
+
+const startDate = startParam ? new Date(startParam) : null;
+const endDate = endParam ? new Date(endParam) : new Date();
+
+const dateFilter: any = {
+  date: {
+    gte: startDate || undefined,
+    lte: endDate
+  }
+};
+
+if (cellId) {
+  dateFilter.cellId = cellId;
+}
+
+// Buscar encontros no período
+const recentMeetings = await prisma.meeting.findMany({
+  take: startDate ? undefined : 10,
+  where: dateFilter,
+  orderBy: { date: 'desc' },
+  include: {
+    cell: true,
+    presences: true,
+  }
+});
+
+// Calcular taxa de presença para cada encontro
+const meetingsWithStats = recentMeetings.map(m => {
+  const total = m.presences.length;
+  const present = m.presences.filter(p => p.isPresent).length;
+  const rate = total > 0 ? Math.round((present / total) * 100) : 0;
+  return { ...m, total, present, rate };
+});
+
+// Preparar dados para o gráfico (agrupar por dia ou encontro)
+const chartData = [...meetingsWithStats].reverse().map(m => ({
+  date: m.date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
+  taxa: m.rate,
+  celula: m.cell.name
+}));
+
+// Buscar observações recentes
+const recentObservations = await prisma.meeting.findMany({
+  take: startDate ? undefined : 5,
+  where: { 
+    ...dateFilter,
+    report: { not: null, notIn: [''] } 
+  },
+  orderBy: { date: 'desc' },
+  include: { cell: true }
+});
+---
+
+<ReportLayout title="Frequência e Engajamento" activeTab="frequencia">
+  
+  <!-- Gráfico de Tendência -->
+  <section class="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
+    <h3 class="font-bold text-brand-dark mb-6">Evolução da Taxa de Presença {startDate ? 'no Período' : '(Últimos 10 encontros)'}</h3>
+    <SimpleLineChart data={chartData} xKey="date" yKey="taxa" color="#3b82f6" client:load />
+  </section>
+
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+    <!-- Tabela Analítica -->
+    <section class="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
+      <h3 class="font-bold text-brand-dark mb-4">Últimos Encontros Registrados</h3>
+      <div class="space-y-4">
+        {meetingsWithStats.map(m => (
+          <div class="flex flex-col border-b border-gray-50 pb-3 last:border-0 last:pb-0">
+            <div class="flex items-center justify-between mb-1">
+              <span class="text-sm font-bold text-gray-700">{m.cell.name}</span>
+              <span class={`text-xs font-bold px-2 py-1 rounded-md ${m.rate >= 70 ? 'bg-green-50 text-green-600' : m.rate >= 40 ? 'bg-amber-50 text-amber-600' : 'bg-red-50 text-red-600'}`}>
+                {m.rate}% Presença
+              </span>
+            </div>
+            <div class="flex items-center gap-2 text-[11px] text-gray-400">
+              <CalendarIcon size={12} />
+              <span>{m.date.toLocaleDateString('pt-BR')}</span>
+              <span>•</span>
+              <span class="truncate">{m.topic || 'Sem tópico'}</span>
+            </div>
+            <div class="flex items-center gap-3 mt-2">
+              <span class="text-[11px] font-medium text-green-600 bg-green-50 px-2 py-0.5 rounded-md">✅ {m.present} presentes</span>
+              {(m.total - m.present) > 0 && <span class="text-[11px] font-medium text-red-500 bg-red-50 px-2 py-0.5 rounded-md">❌ {m.total - m.present} ausentes</span>}
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
+
+    <!-- Mural de Observações -->
+    <section class="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
+      <h3 class="font-bold text-brand-dark mb-4">Observações e Relatórios dos Líderes</h3>
+      <div class="space-y-4">
+        {recentObservations.map(m => (
+          <div class="bg-gray-50 p-4 rounded-2xl border border-gray-100 relative">
+            <MessageSquare size={16} class="absolute top-4 right-4 text-gray-300" />
+            <p class="text-xs font-bold text-brand-primary mb-1">{m.cell.name}</p>
+            <p class="text-[10px] text-gray-400 mb-2">{m.date.toLocaleDateString('pt-BR')}</p>
+            <p class="text-sm text-gray-700 italic">"{m.report}"</p>
+          </div>
+        ))}
+        {recentObservations.length === 0 && (
+          <p class="text-sm text-gray-400 text-center py-8">Nenhuma observação recente.</p>
+        )}
+      </div>
+    </section>
+  </div>
+
+</ReportLayout>
+

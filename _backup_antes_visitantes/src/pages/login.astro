@@ -1,0 +1,190 @@
+---
+import '../styles/global.css';
+import { verifySessionToken } from '../lib/auth-manual';
+
+const sessionToken = Astro.cookies.get('session_token')?.value;
+const user = sessionToken ? await verifySessionToken(sessionToken) : null;
+
+if (user) return Astro.redirect('/');
+---
+
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="description" content="Login - Vida na Vida" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0" />
+    <link rel="icon" type="image/png" href="/images/logo.png" />
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <title>Entrar | Vida na Vida</title>
+    <style>
+      body {
+        font-family: 'Outfit', sans-serif;
+      }
+      .glass-card {
+        background: rgba(255, 255, 255, 0.8);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+      }
+      .loading {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .loading::after {
+        content: '';
+        width: 1em;
+        height: 1em;
+        margin-left: 0.5em;
+        border: 2px solid rgba(255,255,255,0.3);
+        border-radius: 50%;
+        border-top-color: white;
+        animation: spin 1s ease-in-out infinite;
+      }
+      @keyframes spin {
+        to { transform: rotate(360deg); }
+      }
+    </style>
+  </head>
+  <body class="bg-brand-bg antialiased min-h-screen flex flex-col items-center justify-center p-4 relative overflow-hidden">
+
+    <!-- Efeito de fundo Premium -->
+    <div class="absolute top-0 left-0 w-full h-full -z-10">
+      <div class="absolute top-[-10%] right-[-10%] w-[50%] h-[50%] bg-brand-primary/10 rounded-full blur-[120px]"></div>
+      <div class="absolute bottom-[-10%] left-[-10%] w-[50%] h-[50%] bg-brand-accent/10 rounded-full blur-[120px]"></div>
+    </div>
+
+    <div class="w-full max-w-sm glass-card rounded-[2.5rem] shadow-2xl border border-white/50 p-10 flex flex-col items-center text-center">
+      <img src="/images/logo.png" alt="Vida na Vida" class="h-24 w-auto mb-8 drop-shadow-md" />
+
+      <h1 class="text-3xl font-bold text-brand-dark mb-2 tracking-tight">Bem-vindo(a)</h1>
+      <p class="text-gray-500 mb-8 text-sm px-4">
+        Acesse o sistema de gestão de células da Comunidade Vida na Vida.
+      </p>
+
+
+      <!-- Login com Credenciais -->
+      <form id="login-credentials" class="w-full flex flex-col gap-5" method="post" novalidate>
+        <div class="flex flex-col text-left gap-1.5">
+          <label for="email" class="text-[11px] font-bold text-gray-400 uppercase tracking-wider ml-1">E-mail</label>
+          <input
+            type="email"
+            id="email"
+            name="email"
+            required
+            placeholder="exemplo@vida.com"
+            class="w-full px-5 py-4 rounded-2xl border border-gray-100 bg-white/50 focus:bg-white focus:ring-4 focus:ring-brand-primary/10 focus:border-brand-primary focus:outline-none transition-all placeholder:text-gray-300 text-sm"
+          />
+          <span class="hidden text-xs text-red-500 mt-1" data-error="email"></span>
+        </div>
+
+        <div class="flex flex-col text-left gap-1.5">
+          <label for="password" class="text-[11px] font-bold text-gray-400 uppercase tracking-wider ml-1">Senha</label>
+          <input
+            type="password"
+            id="password"
+            name="password"
+            required
+            placeholder="••••••••"
+            class="w-full px-5 py-4 rounded-2xl border border-gray-100 bg-white/50 focus:bg-white focus:ring-4 focus:ring-brand-primary/10 focus:border-brand-primary focus:outline-none transition-all placeholder:text-gray-300 text-sm"
+          />
+          <span class="hidden text-xs text-red-500 mt-1" data-error="password"></span>
+          <div class="flex justify-end mt-1 px-1">
+            <a href="/esqueci-senha" class="text-[10px] font-bold text-brand-primary uppercase tracking-wider hover:underline opacity-70 hover:opacity-100 transition-all">
+              Esqueci minha senha
+            </a>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          id="login-submit"
+          class="w-full bg-brand-primary text-white font-bold py-4 rounded-2xl hover:brightness-110 shadow-xl shadow-brand-primary/20 transition-all active:scale-[0.98] mt-2 text-sm">
+          Entrar no Sistema
+        </button>
+      </form>
+    </div>
+
+    <p class="text-[11px] text-gray-400 mt-10 font-medium tracking-wide">© 2026 COMUNIDADE CRISTÃ VIDA NA VIDA</p>
+
+    <!-- ==== SCRIPT (processado pelo Astro/Vite) ==== -->
+    <script>
+      // ---------- Função de exibição de erro ----------
+      function showError(fieldName, message) {
+        const errorEl = document.querySelector(`[data-error="${fieldName}"]`);
+        if (errorEl) {
+          errorEl.textContent = message;
+          errorEl.classList.remove('hidden');
+        }
+      }
+
+      function clearErrors() {
+        document.querySelectorAll('[data-error]').forEach(el => el.classList.add('hidden'));
+      }
+
+      // ---------- Login com Credenciais (disparado pelo botão ou Enter) ----------
+      async function handleLogin() {
+        const email = (document.getElementById('email') as HTMLInputElement).value;
+        const password = (document.getElementById('password') as HTMLInputElement).value;
+
+        // Limpar erros anteriores
+        clearErrors();
+
+        // Validação
+        let hasErrors = false;
+        if (!email) {
+          showError('email', 'E‑mail é obrigatório');
+          hasErrors = true;
+        } else if (!/^[^\@\s]+@[^\@\s]+\.[^\@\s]+$/.test(email)) {
+          showError('email', 'E‑mail inválido');
+          hasErrors = true;
+        }
+        if (!password) {
+          showError('password', 'Senha é obrigatória');
+          hasErrors = true;
+        }
+        if (hasErrors) return;
+
+        const btn = document.getElementById('login-submit') as HTMLButtonElement;
+        try {
+          if (btn) {
+            btn.innerHTML = '<span class="loading">Autenticando...</span>';
+            btn.disabled = true;
+          }
+
+          const response = await fetch('/api/auth/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, password })
+          });
+
+          const result = await response.json();
+
+          if (response.ok && result.success) {
+            window.location.href = '/';
+          } else {
+            showError('password', result.error || 'E-mail ou senha incorretos');
+          }
+        } catch (error) {
+          console.error(error);
+          showError('password', 'Erro ao processar login. Tente novamente.');
+        } finally {
+          if (btn) {
+            btn.innerHTML = 'Entrar no Sistema';
+            btn.disabled = false;
+          }
+        }
+      }
+
+      // Botão Entrar
+      document.getElementById('login-submit')?.addEventListener('click', handleLogin);
+
+      // Suporte à tecla Enter nos campos
+      ['email', 'password'].forEach(id => {
+        document.getElementById(id)?.addEventListener('keydown', (e) => {
+          if (e instanceof KeyboardEvent && e.key === 'Enter') handleLogin();
+        });
+      });
+    </script>
+  </body>
+</html>

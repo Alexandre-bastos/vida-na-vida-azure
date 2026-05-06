@@ -1,0 +1,157 @@
+---
+import ReportLayout from '../../layouts/ReportLayout.astro';
+
+import prisma from '../../lib/prisma';
+import SimplePieChart from '../../components/charts/SimplePieChart';
+import { UserMinus } from 'lucide-react';
+
+const user = Astro.locals.user;
+if (!user) return Astro.redirect('/login');
+
+const userRole = (user as any)?.role;
+if (userRole !== 'ADMIN' && userRole !== 'COORDENADOR') {
+  return Astro.redirect('/');
+}
+
+// Extrair filtros
+const url = new URL(Astro.request.url);
+const startParam = url.searchParams.get('startDate');
+const endParam = url.searchParams.get('endDate');
+const cellId = url.searchParams.get('cellId');
+
+const startDate = startParam ? new Date(startParam) : null;
+const endDate = endParam ? new Date(endParam) : new Date();
+
+const cellMembershipFilter = cellId ? { cellHistory: { some: { cellId, endDate: null } } } : {};
+
+// Buscar todos os membros ativos
+const activeMembers = await prisma.user.findMany({
+  where: { active: true, ...cellMembershipFilter },
+  include: {
+    cellHistory: {
+      where: { endDate: null },
+      include: { cell: true }
+    }
+  }
+});
+
+// Preparar dados de Gênero
+let maleCount = 0;
+let femaleCount = 0;
+let undefinedGenderCount = 0;
+
+activeMembers.forEach(m => {
+  if (m.gender === 'M') maleCount++;
+  else if (m.gender === 'F') femaleCount++;
+  else undefinedGenderCount++;
+});
+
+const genderData = [
+  { name: 'Masculino', value: maleCount },
+  { name: 'Feminino', value: femaleCount },
+  ...(undefinedGenderCount > 0 ? [{ name: 'Não informado', value: undefinedGenderCount }] : [])
+];
+
+// Preparar dados de Faixa Etária
+let jovens = 0; // até 24 anos
+let adultos = 0; // 25 a 59
+let idosos = 0; // 60+
+let unknownAge = 0;
+
+const currentYear = new Date().getFullYear();
+
+activeMembers.forEach(m => {
+  if (m.birthDate) {
+    const age = currentYear - m.birthDate.getFullYear();
+    if (age <= 24) jovens++;
+    else if (age <= 59) adultos++;
+    else idosos++;
+  } else {
+    unknownAge++;
+  }
+});
+
+const ageData = [
+  { name: 'Jovens (Até 24)', value: jovens },
+  { name: 'Adultos (25-59)', value: adultos },
+  { name: 'Idosos (60+)', value: idosos },
+  ...(unknownAge > 0 ? [{ name: 'Não informado', value: unknownAge }] : [])
+];
+
+// As variáveis startParam, endParam já foram movidas para cima.
+
+// Identificar membros ativos que não têm nenhuma presença no período selecionado (Desaparecidos)
+const alertStartDate = startDate || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+
+const missingMembers = await prisma.user.findMany({
+  where: {
+    active: true,
+    ...cellMembershipFilter,
+    presences: {
+      none: {
+        isPresent: true,
+        meeting: {
+          date: { 
+            gte: alertStartDate,
+            lte: endDate
+          }
+        }
+      }
+    }
+  },
+  include: {
+    cellHistory: {
+      where: { endDate: null },
+      include: { cell: true }
+    }
+  }
+});
+
+---
+
+<ReportLayout title="Perfil de Membros" activeTab="perfil">
+  
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+    <!-- Gráfico de Gênero -->
+    <section class="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
+      <h3 class="font-bold text-brand-dark mb-6">Distribuição por Sexo</h3>
+      <SimplePieChart data={genderData} nameKey="name" dataKey="value" colors={['#3b82f6', '#ec4899', '#9ca3af']} client:load />
+    </section>
+
+    <!-- Gráfico de Faixa Etária -->
+    <section class="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
+      <h3 class="font-bold text-brand-dark mb-6">Faixa Etária</h3>
+      <SimplePieChart data={ageData} nameKey="name" dataKey="value" colors={['#8b5cf6', '#10b981', '#f59e0b', '#9ca3af']} client:load />
+    </section>
+  </div>
+
+  <!-- Membros Ausentes -->
+  <section class="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 mt-4">
+    <h3 class="font-bold text-brand-dark mb-2 flex items-center gap-2">
+      <UserMinus size={18} class="text-red-500" /> 
+      Atenção: Membros Ausentes
+    </h3>
+    <p class="text-xs text-gray-500 mb-6">Membros ativos sem nenhuma presença registrada {startDate ? 'no período selecionado' : 'nos últimos 30 dias'}.</p>
+    
+    <div class="grid sm:grid-cols-2 md:grid-cols-3 gap-3">
+      {missingMembers.map(m => (
+        <div class="p-3 border border-red-50 bg-red-50/30 rounded-2xl flex items-center gap-3">
+          <div class="w-10 h-10 rounded-full bg-red-100 text-red-500 flex items-center justify-center font-bold shrink-0">
+            {m.name?.charAt(0)}
+          </div>
+          <div>
+            <p class="text-sm font-bold text-brand-dark truncate">{m.name}</p>
+            <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+              {m.cellHistory[0]?.cell.name || 'Sem célula'}
+            </p>
+          </div>
+        </div>
+      ))}
+      {missingMembers.length === 0 && (
+        <p class="text-sm text-gray-500 col-span-full">Nenhum membro ausente identificado! Excelente.</p>
+      )}
+    </div>
+  </section>
+
+</ReportLayout>
+

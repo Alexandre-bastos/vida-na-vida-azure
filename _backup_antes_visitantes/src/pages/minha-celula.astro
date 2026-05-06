@@ -1,0 +1,52 @@
+---
+import AppLayout from '../layouts/AppLayout.astro';
+import prisma from '../lib/prisma';
+
+
+const user = Astro.locals.user;
+if (!user) return Astro.redirect('/login');
+
+const userId = user?.id;
+const userRole = user?.role;
+
+if (!userRole) {
+  return new Response(null, { status: 302, headers: { location: '/login' } });
+}
+
+if (!['LIDER', 'LIDER_TREINAMENTO', 'MEMBRO'].includes(userRole)) {
+  return Astro.redirect('/celulas');
+}
+
+const cells = await prisma.cell.findMany({
+  where: {
+    OR: [
+      { leaderId: userId },
+      { memberships: { some: { userId, endDate: null } } }
+    ]
+  },
+  include: { leader: true }
+});
+
+// If exactly one cell, redirect to its page
+if (cells.length === 1) {
+  return Astro.redirect(`/celulas/${cells[0].id}`);
+}
+---
+<AppLayout title="Minha Célula">
+  {cells.length === 0 ? (
+    <p class="text-center mt-8">Você não lidera nenhuma célula.</p>
+  ) : (
+    <>
+      <h2 class="text-xl font-bold mb-4">Selecione a célula que você lidera</h2>
+      <ul class="space-y-2">
+        {cells.map(cell => (
+          <li key={cell.id}>
+            <a href={`/celulas/${cell.id}`} class="text-blue-600 hover:underline">
+              {cell.name}
+            </a>
+          </li>
+        ))}
+      </ul>
+    </>
+  )}
+</AppLayout>

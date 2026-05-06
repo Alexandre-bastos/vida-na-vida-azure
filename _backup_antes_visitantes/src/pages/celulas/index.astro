@@ -1,0 +1,105 @@
+---
+import AppLayout from '../../layouts/AppLayout.astro';
+import { Users, Plus, MapPin, Calendar as CalendarIcon, ArrowRight } from 'lucide-react';
+
+import prisma from '../../lib/prisma';
+
+const user = Astro.locals.user;
+if (!user) return Astro.redirect('/login');
+
+// Definir permissões de visualização
+const userId = (user as any)?.id;
+const userRole = ((user as any)?.role || 'MEMBRO').toUpperCase();
+const isAdmin = userRole === 'ADMIN';
+const isCoordinator = userRole === 'COORDENADOR';
+
+let whereClause = {};
+if (isAdmin || isCoordinator) {
+  // Administradores e coordenadores veem todas as células
+  whereClause = {};
+} else {
+  // Líderes e Membros veem apenas as células onde estão vinculados
+  whereClause = {
+    OR: [
+      { leaderId: userId },
+      { memberships: { some: { userId, endDate: null } } }
+    ]
+  };
+}
+
+const cells = await prisma.cell.findMany({
+	where: whereClause,
+	include: {
+		leader: true,
+		_count: {
+			select: { memberships: true }
+		}
+	},
+	orderBy: { name: 'asc' }
+});
+---
+
+<AppLayout title="Células">
+	<div class="space-y-6">
+		<header class="flex items-center justify-between">
+			<div>
+				<div class="flex items-center gap-3">
+					<a href="/" class="text-gray-400 hover:text-brand-primary hidden sm:inline">Home</a>
+					<h1 class="text-2xl font-bold text-brand-dark">Células</h1>
+				</div>
+				<p class="text-sm text-gray-500 mt-1">Gerencie as comunidades da igreja.</p>
+			</div>
+			{(isAdmin || isCoordinator) && (
+				<a href="/celulas/nova" class="bg-brand-primary text-white p-3 rounded-2xl shadow-lg shadow-brand-primary/20 hover:scale-105 transition-transform active:scale-95">
+					<Plus size={20} />
+				</a>
+			)}
+		</header>
+
+		{cells.length === 0 ? (
+			<div class="bg-white rounded-[2rem] p-12 flex flex-col items-center text-center border border-dashed border-gray-200">
+				<div class="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center text-gray-300 mb-4">
+					<Users size={32} />
+				</div>
+				<h3 class="text-lg font-bold text-brand-dark">Nenhuma célula encontrada</h3>
+				<p class="text-sm text-gray-400 mt-2 max-w-[200px]">Comece criando a primeira célula do sistema.</p>
+				{(isAdmin || isCoordinator) && (
+					<a href="/celulas/nova" class="mt-6 text-brand-primary font-bold text-sm hover:underline">Criar agora</a>
+				)}
+			</div>
+		) : (
+			<div class="grid gap-4">
+				{cells.map((cell) => (
+					<a href={`/celulas/${cell.id}`} class="bg-white p-5 rounded-[2rem] shadow-sm border border-gray-100 flex flex-col gap-4 hover:border-brand-light transition-all">
+						<div class="flex items-center justify-between">
+							<div class="flex items-center gap-3">
+								<div class="w-12 h-12 bg-blue-50 rounded-2xl flex items-center justify-center text-brand-primary">
+									<Users size={24} />
+								</div>
+								<div>
+									<h3 class="font-bold text-brand-dark">{cell.name}</h3>
+									<p class="text-xs text-gray-500 mt-0.5">Líder: {cell.leader?.name || 'Não definido'}</p>
+								</div>
+							</div>
+							<div class="bg-gray-50 px-3 py-1 rounded-full text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+								{cell._count.memberships} membros
+							</div>
+						</div>
+
+						<div class="flex items-center gap-4 text-xs text-gray-400 border-t border-gray-50 pt-4">
+							<div class="flex items-center gap-1.5">
+								<MapPin size={14} class="text-brand-primary/50" />
+								<span>{cell.address || 'Sem endereço'}</span>
+							</div>
+							<div class="flex items-center gap-1.5">
+								<CalendarIcon size={14} class="text-brand-accent/50" />
+								<span>{cell.dayOfWeek !== null ? ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'][cell.dayOfWeek] : 'Dia'} • {cell.time || '--:--'}</span>
+							</div>
+						</div>
+					</a>
+				))}
+			</div>
+		)}
+	</div>
+</AppLayout>
+

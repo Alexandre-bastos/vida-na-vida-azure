@@ -1,0 +1,167 @@
+---
+import '../styles/global.css';
+import prisma from '../lib/prisma';
+import bcrypt from 'bcryptjs';
+
+const token = Astro.url.searchParams.get('token');
+const email = Astro.url.searchParams.get('email');
+
+let error = '';
+let success = false;
+
+// 1. Validar se o token e e-mail existem no banco e não expiraram
+let verification = null;
+if (token && email) {
+    verification = await prisma.verificationtoken.findFirst({
+        where: {
+            identifier: email,
+            token: token,
+            expires: { gt: new Date() }
+        }
+    });
+}
+
+if (!verification && Astro.request.method !== 'POST') {
+    error = 'Este link de convite é inválido ou já expirou. Peça ao administrador para enviar um novo convite.';
+}
+
+// 2. Lógica de salvar a nova senha
+if (Astro.request.method === 'POST') {
+    const formData = await Astro.request.formData();
+    const password = formData.get('password')?.toString();
+    const confirmPassword = formData.get('confirmPassword')?.toString();
+
+    // Re-validar token no POST
+    if (!verification) {
+        verification = await prisma.verificationtoken.findFirst({
+            where: {
+                identifier: email || '',
+                token: token || '',
+                expires: { gt: new Date() }
+            }
+        });
+    }
+
+    if (!verification) {
+        error = 'Este link de convite é inválido ou já expirou.';
+    } else if (!password || password.length < 6) {
+        error = 'A senha deve ter pelo menos 6 caracteres.';
+    } else if (password !== confirmPassword) {
+        error = 'As senhas não coincidem.';
+    } else {
+        try {
+            const hashedPassword = bcrypt.hashSync(password, 10);
+            
+            // Atualiza o usuário e remove o token usado
+            await prisma.$transaction([
+                prisma.user.update({
+                    where: { email: email! },
+                    data: { password: hashedPassword }
+                }),
+                prisma.verificationtoken.delete({
+                    where: { 
+                        identifier_token: {
+                            identifier: email!,
+                            token: token!
+                        }
+                    }
+                })
+            ]);
+
+            success = true;
+        } catch (e) {
+            console.error(e);
+            error = 'Ocorreu um erro ao salvar sua senha. Tente novamente.';
+        }
+    }
+}
+
+const hasValidToken = !!verification || Astro.request.method === 'POST';
+---
+
+<!doctype html>
+<html lang="pt-BR">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+		<link rel="icon" type="image/png" href="/images/logo.png" />
+		<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
+		<title>Definir Senha | Vida na Vida</title>
+        <style>
+            body { font-family: 'Outfit', sans-serif; }
+            .glass-card {
+                background: rgba(255, 255, 255, 0.9);
+                backdrop-filter: blur(10px);
+            }
+        </style>
+	</head>
+	<body class="bg-brand-bg antialiased min-h-screen flex flex-col items-center justify-center p-6 relative">
+		
+        <div class="w-full max-w-sm glass-card rounded-[2.5rem] shadow-2xl border border-white p-8 md:p-10 text-center">
+			<img src="/images/logo.png" alt="Vida na Vida" class="h-16 w-auto mb-6 mx-auto" />
+			
+            {success ? (
+                <div class="space-y-6">
+                    <div class="w-20 h-20 bg-green-50 text-green-500 rounded-full flex items-center justify-center mx-auto text-4xl">
+                        ✓
+                    </div>
+                    <h1 class="text-2xl font-bold text-brand-dark">Senha Definida!</h1>
+                    <p class="text-gray-500 text-sm">Sua conta foi ativada com sucesso. Você já pode acessar o sistema.</p>
+                    <a href="/login" class="block w-full bg-brand-primary text-white font-bold py-4 rounded-2xl shadow-lg shadow-brand-primary/20 hover:brightness-110 transition-all">
+                        Ir para o Login
+                    </a>
+                </div>
+            ) : (
+                <div class="space-y-6">
+                    <h1 class="text-2xl font-bold text-brand-dark tracking-tight">Primeiro Acesso</h1>
+                    <p class="text-gray-500 text-xs">Olá <b>{email}</b>, defina sua senha abaixo para ativar sua conta.</p>
+
+                    {error && (
+                        <div class="bg-red-50 text-red-500 p-3 rounded-xl text-[11px] font-bold border border-red-100 flex items-center gap-2 text-left">
+                            ⚠️ {error}
+                        </div>
+                    )}
+
+                    {!error && (
+                        <form method="POST" class="space-y-4 text-left">
+                            <div class="space-y-1.5">
+                                <label for="password" class="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">Nova Senha</label>
+                                <input 
+                                    type="password" 
+                                    id="password" 
+                                    name="password" 
+                                    required 
+                                    minlength="6"
+                                    placeholder="Mínimo 6 caracteres" 
+                                    class="w-full px-5 py-4 rounded-2xl border border-gray-100 bg-gray-50/50 focus:bg-white focus:outline-none focus:ring-4 focus:ring-brand-primary/10 focus:border-brand-primary transition-all text-sm" 
+                                />
+                            </div>
+
+                            <div class="space-y-1.5">
+                                <label for="confirmPassword" class="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">Confirmar Senha</label>
+                                <input 
+                                    type="password" 
+                                    id="confirmPassword" 
+                                    name="confirmPassword" 
+                                    required 
+                                    placeholder="Repita a senha" 
+                                    class="w-full px-5 py-4 rounded-2xl border border-gray-100 bg-gray-50/50 focus:bg-white focus:outline-none focus:ring-4 focus:ring-brand-primary/10 focus:border-brand-primary transition-all text-sm" 
+                                />
+                            </div>
+
+                            <button 
+                                type="submit" 
+                                class="w-full bg-brand-primary text-white font-bold py-4 rounded-2xl shadow-xl shadow-brand-primary/20 hover:brightness-110 transition-all active:scale-[0.98] mt-4"
+                            >
+                                Ativar minha Conta
+                            </button>
+                        </form>
+                    )}
+                </div>
+            )}
+		</div>
+
+		<p class="text-[10px] text-gray-400 mt-10 font-bold uppercase tracking-widest">© 2026 Vida na Vida</p>
+	</body>
+</html>
+

@@ -1,0 +1,105 @@
+---
+import AppLayout from '../layouts/AppLayout.astro';
+import { Mail, ChevronLeft, Send } from 'lucide-react';
+
+// Se o usuário já estiver logado, redireciona para a home
+const user = Astro.locals.user;
+if (user) return Astro.redirect('/');
+---
+
+<AppLayout title="Recuperar Senha">
+  <div class="min-h-[80vh] flex flex-col items-center justify-center px-4">
+    <div class="w-full max-w-md bg-white p-8 rounded-[2.5rem] shadow-sm border border-gray-100">
+      <div class="text-center mb-8">
+        <div class="w-16 h-16 bg-red-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
+          <Mail size={32} class="text-red-500" />
+        </div>
+        <h1 class="text-2xl font-bold text-gray-900">Esqueceu a senha?</h1>
+        <p class="text-gray-500 mt-2">Não se preocupe, vamos te ajudar a recuperar o acesso.</p>
+      </div>
+
+      <form id="forgot-password-form" class="space-y-6">
+        <div>
+          <label for="email" class="block text-sm font-semibold text-gray-700 mb-2">E-mail cadastrado</label>
+          <div class="relative">
+            <Mail class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+            <input 
+              type="email" 
+              id="email" 
+              name="email" 
+              required 
+              placeholder="seu@email.com"
+              class="w-full pl-12 pr-4 py-4 bg-gray-50 border-none rounded-2xl focus:ring-2 focus:ring-red-500 transition-all outline-none"
+            />
+          </div>
+        </div>
+
+        <button 
+          type="submit" 
+          class="w-full bg-red-500 hover:bg-red-600 text-white font-bold py-4 rounded-2xl shadow-lg shadow-red-200 transition-all flex items-center justify-center gap-2 group"
+        >
+          <span>Enviar Link de Recuperação</span>
+          <Send size={18} class="group-hover:translate-x-1 transition-transform" />
+        </button>
+
+        <div id="message-area" class="hidden p-4 rounded-2xl text-sm font-medium"></div>
+
+        <a href="/login" class="flex items-center justify-center gap-2 text-gray-500 hover:text-gray-700 transition-colors text-sm font-semibold mt-4">
+          <ChevronLeft size={16} />
+          Voltar para o Login
+        </a>
+      </form>
+    </div>
+  </div>
+</AppLayout>
+
+<script>
+  const form = document.getElementById('forgot-password-form') as HTMLFormElement;
+  const messageArea = document.getElementById('message-area');
+
+  form?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const formData = new FormData(form);
+    const email = formData.get('email');
+
+    const submitBtn = form.querySelector('button[type="submit"]') as HTMLButtonElement;
+
+    try {
+      const response = await fetch('/api/auth/forgot-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email })
+      });
+
+      const result = await response.json();
+
+      // Destravar o botão (o listener global o travou)
+      if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.style.opacity = '1';
+        submitBtn.style.cursor = 'pointer';
+        submitBtn.innerHTML = '<span>Enviar Link de Recuperação</span> <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-send group-hover:translate-x-1 transition-transform"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>';
+        delete form.dataset.submitting;
+      }
+
+      if (messageArea) {
+        messageArea.classList.remove('hidden', 'bg-red-50', 'text-red-700', 'bg-green-50', 'text-green-700');
+        
+        if (response.ok) {
+          messageArea.classList.add('bg-green-50', 'text-green-700');
+          messageArea.innerText = result.message;
+          form.reset();
+        } else {
+          messageArea.classList.add('bg-red-50', 'text-red-700');
+          messageArea.innerText = result.error || 'Erro ao processar solicitação';
+        }
+      }
+    } catch (error) {
+      if (messageArea) {
+        messageArea.classList.remove('hidden');
+        messageArea.classList.add('bg-red-50', 'text-red-700');
+        messageArea.innerText = 'Erro de conexão. Tente novamente.';
+      }
+    }
+  });
+</script>

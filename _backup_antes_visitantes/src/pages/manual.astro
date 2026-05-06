@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Manual do Usuário — Vida na Vida</title>
+  <link rel="icon" type="image/png" href="/images/logo.png" />
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+    :root {
+      --primary: #5270ac;
+      --dark: #2c3c5c;
+      --accent: #c9a84c;
+      --bg: #f8f9fc;
+      --gray: #6b7280;
+      --light-gray: #e5e7eb;
+      --success: #10b981;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      color: #333;
+      line-height: 1.7;
+      font-size: 11pt;
+      background: var(--bg);
+      padding-top: 80px; /* Space for fixed nav */
+    }
+
+    /* Print settings */
+    @page {
+      size: A4;
+      margin: 20mm 18mm 25mm 18mm;
+    }
+
+    @media print {
+      body { padding-top: 0; background: white; }
+      .profile-selector, .no-print { display: none !important; }
+      .content { max-width: 100% !important; margin: 0 !important; box-shadow: none !important; }
+      .section { display: block !important; }
+    }
+
+    /* Header Nav */
+    .profile-selector {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      background: white;
+      padding: 15px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+      z-index: 1000;
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .nav-btn {
+      padding: 8px 16px;
+      border: 2px solid var(--light-gray);
+      background: white;
+      border-radius: 50px;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 0.9rem;
+      transition: all 0.2s;
+      color: var(--gray);
+    }
+
+    .nav-btn:hover {
+      background: var(--bg);
+      border-color: var(--primary);
+      color: var(--primary);
+    }
+
+    .nav-btn.active {
+      background: var(--primary);
+      border-color: var(--primary);
+      color: white;
+      box-shadow: 0 4px 12px rgba(82, 112, 172, 0.2);
+    }
+
+    /* Content Container */
+    .content {
+      max-width: 900px;
+      margin: 20px auto 60px;
+      background: white;
+      padding: 40px;
+      border-radius: 16px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+    }
+
+    /* Cover Page */
+    .cover {
+      text-align: center;
+      padding: 40px 0;
+      border-bottom: 1px solid var(--light-gray);
+      margin-bottom: 40px;
+    }
+    .cover-logo {
+      width: 150px;
+      height: auto;
+      margin: 0 auto 24px;
+      display: block;
+    }
+    .cover-logo img {
+      width: 100%;
+      height: auto;
+      border-radius: 16px;
+    }
+    .cover h1 {
+      font-size: 28pt;
+      font-weight: 800;
+      color: var(--dark);
+      margin-bottom: 8px;
+    }
+    .cover h2 {
+      font-size: 14pt;
+      font-weight: 500;
+      color: var(--gray);
+    }
+
+    /* Typography */
+    h1 {
+      font-size: 20pt;
+      font-weight: 800;
+      color: var(--dark);
+      margin-top: 40px;
+      margin-bottom: 16px;
+      padding-bottom: 8px;
+      border-bottom: 3px solid var(--primary);
+    }
+
+    h2 {
+      font-size: 14pt;
+      font-weight: 700;
+      color: var(--primary);
+      margin-top: 30px;
+      margin-bottom: 10px;
+    }
+
+    h3 {
+      font-size: 12pt;
+      font-weight: 700;
+      color: var(--dark);
+      margin-top: 20px;
+      margin-bottom: 8px;
+    }
+
+    p { margin-bottom: 12px; }
+    ul, ol { margin-bottom: 16px; padding-left: 24px; }
+    li { margin-bottom: 6px; }
+
+    /* Tables */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 20px 0;
+      font-size: 10pt;
+    }
+
+    thead th {
+      background: var(--dark);
+      color: white;
+      font-weight: 700;
+      text-align: left;
+      padding: 12px;
+    }
+
+    tbody td {
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--light-gray);
+      vertical-align: top;
+    }
+
+    tbody tr:nth-child(even) { background: #f8f9fc; }
+
+    /* Special Classes */
+    .info-box {
+      background: #eff6ff;
+      border-left: 4px solid var(--primary);
+      padding: 15px;
+      margin: 20px 0;
+      border-radius: 0 8px 8px 0;
+    }
+
+    .warning-box {
+      background: #fef9ee;
+      border-left: 4px solid var(--accent);
+      padding: 15px;
+      margin: 20px 0;
+      border-radius: 0 8px 8px 0;
+    }
+
+    .steps { counter-reset: step; list-style: none; padding-left: 0; }
+    .steps li { counter-increment: step; padding-left: 40px; position: relative; margin-bottom: 12px; }
+    .steps li::before {
+      content: counter(step);
+      position: absolute; left: 0; top: 2px;
+      width: 28px; height: 28px; background: var(--primary); color: white;
+      border-radius: 50%; font-weight: 700; display: flex; align-items: center; justify-content: center;
+    }
+
+    .check { color: var(--success); font-weight: 700; }
+    .cross { color: #ef4444; font-weight: 700; }
+
+    /* Footer */
+    .footer {
+      text-align: center;
+      margin-top: 60px;
+      padding-top: 20px;
+      border-top: 1px solid var(--light-gray);
+      color: var(--gray);
+    }
+
+    /* Section Filtering */
+    .section { display: none; }
+    .section.visible { display: block; animation: fadeIn 0.3s ease-out; }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Mobile adjustments */
+    @media (max-width: 600px) {
+      .content { padding: 20px; border-radius: 0; margin-top: 0; }
+      .profile-selector { padding: 10px; gap: 5px; }
+      .nav-btn { font-size: 0.8rem; padding: 6px 12px; }
+      h1 { font-size: 18pt; }
+    }
+  </style>
+</head>
+<body>
+
+  <nav class="profile-selector no-print">
+    <button class="nav-btn active" onclick="filterByRole('ALL')">Todos</button>
+    <button class="nav-btn" onclick="filterByRole('ADMIN')">Administrador</button>
+    <button class="nav-btn" onclick="filterByRole('COORD')">Coordenador</button>
+    <button class="nav-btn" onclick="filterByRole('LIDER')">Líder</button>
+    <button class="nav-btn" onclick="filterByRole('LT')">Líder Trein.</button>
+    <button class="nav-btn" onclick="filterByRole('MEMBRO')">Membro</button>
+  </nav>
+
+  <div class="content">
+    
+    <div class="cover">
+      <img src="/images/logo.png" alt="Logo Vida na Vida" class="cover-logo">
+      <h1>Manual do Usuário</h1>
+      <h2 id="role-title">Sistema de Gestão de Células</h2>
+      <p style="color: var(--gray); margin-top: 10px;">Versão 1.1 — Abril 2026</p>
+    </div>
+
+    <!-- 1. ACESSO -->
+    <div class="section" data-roles="ALL ADMIN COORD LIDER LT MEMBRO">
+      <h1>1. Acesso ao Sistema</h1>
+      <p><strong>Endereço:</strong> <code>https://vida-na-vida.vercel.app</code></p>
+      <h3>Como entrar</h3>
+      <ol class="steps">
+        <li>Abra o endereço acima no navegador.</li>
+        <li>Informe seu <strong>e-mail</strong> e <strong>senha</strong>.</li>
+        <li>Toque em <strong>Entrar no Sistema</strong>.</li>
+      </ol>
+      <div class="warning-box">
+        <strong>Redirecionamento de Segurança:</strong> Caso seu perfil esteja incompleto ou use a senha padrão (<code>vidanavida</code>), o sistema o levará automaticamente para atualizar seus dados.
+      </div>
+    </div>
+
+    <!-- 2. PAPÉIS (Visão Geral) -->
+    <div class="section" data-roles="ALL ADMIN COORD">
+      <h1>2. Papéis e Permissões</h1>
+      <p>O sistema possui 5 tipos de usuário com permissões hierárquicas.</p>
+      <table>
+        <thead>
+          <tr><th>Papel</th><th>Responsabilidade</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><strong>Administrador</strong></td><td>Gestão total do sistema e infraestrutura.</td></tr>
+          <tr><td><strong>Coordenador</strong></td><td>Supervisão de múltiplas células e avisos.</td></tr>
+          <tr><td><strong>Líder</strong></td><td>Gestão da sua célula e registro de presença.</td></tr>
+          <tr><td><strong>LT</strong></td><td>Auxílio na liderança e cadastro de membros.</td></tr>
+          <tr><td><strong>Membro</strong></td><td>Visão da sua célula e perfil pessoal.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- 3. MATRIZ -->
+    <div class="section" data-roles="ALL ADMIN COORD">
+      <h2>Matriz de Permissões</h2>
+      <table class="permissions">
+        <thead>
+          <tr><th>Funcionalidade</th><th>Admin</th><th>Coord.</th><th>Líder</th><th>Membro</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Ver Células</td><td class="check">✔</td><td class="check">✔</td><td class="cross">✘</td><td class="cross">✘</td></tr>
+          <tr><td>Registrar Presença</td><td class="check">✔</td><td class="check">✔</td><td class="check">✔</td><td class="cross">✘</td></tr>
+          <tr><td>Gerenciar Lições</td><td class="check">✔</td><td class="cross">✘</td><td class="cross">✘</td><td class="cross">✘</td></tr>
+          <tr><td>Ver Relatórios</td><td class="check">✔</td><td class="check">✔</td><td class="cross">✘</td><td class="cross">✘</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- 3.1 TELA INICIAL -->
+    <div class="section" data-roles="ALL ADMIN COORD LIDER LT MEMBRO">
+      <h1>3. Funcionalidades Principais</h1>
+      <h2>3.1 Tela Inicial</h2>
+      <p>Onde você encontra os avisos da semana, atalhos rápidos e o destaque da <strong>Lição da Semana</strong>.</p>
+    </div>
+
+    <!-- 3.2 PERFIL -->
+    <div class="section" data-roles="ALL ADMIN COORD LIDER LT MEMBRO">
+      <h2>3.2 Meu Perfil</h2>
+      <p>Mantenha seus dados sempre atualizados para que a coordenação possa entrar em contato.</p>
+      <ul>
+        <li>Alterar <strong>Nome, Foto e Senha</strong>.</li>
+        <li>Informar <strong>Telefone</strong> (máscara automática).</li>
+        <li>Trocar a senha padrão <code>vidanavida</code> no primeiro acesso.</li>
+      </ul>
+      <div class="info-box">
+        <strong>Dica de Foto:</strong> O sistema comprime as imagens automaticamente, poupando seus dados móveis e tornando o upload instantâneo.
+      </div>
+    </div>
+
+    <!-- 3.3 MEMBROS -->
+    <div class="section" data-roles="ALL ADMIN COORD LIDER LT">
+      <h2>3.3 Gestão de Membros</h2>
+      <p><strong>Visibilidade:</strong> Líderes e LTs podem ver membros de sua célula e membros <strong>Não Alocados</strong>.</p>
+      <h3>Cadastrar Membro</h3>
+      <ol class="steps">
+        <li>Vá em <strong>Membros</strong> -> <strong>+ Novo Membro</strong>.</li>
+        <li>Preencha os dados e escolha o cargo.</li>
+        <li><strong>LTs</strong> só podem criar membros com cargo "Membro".</li>
+      </ol>
+    </div>
+
+    <!-- 3.4 CÉLULAS -->
+    <div class="section" data-roles="ALL ADMIN COORD">
+      <h2>3.4 Células</h2>
+      <p>Criação e edição de endereços, dias de reunião e horários.</p>
+      <div class="info-box">
+        Ao definir um líder para a célula, ele ganha acesso automático à tela de <strong>Minha Célula</strong>.
+      </div>
+    </div>
+
+    <!-- 3.5 PRESENÇA -->
+    <div class="section" data-roles="ALL ADMIN COORD LIDER LT">
+      <h2>3.5 Registro de Presença</h2>
+      <ol class="steps">
+        <li>Selecione a data do encontro.</li>
+        <li>Marque quem esteve presente.</li>
+        <li>Anexe uma <strong>Foto do Encontro</strong> para gerar engajamento.</li>
+      </ol>
+    </div>
+
+    <!-- 3.8 LIÇÕES -->
+    <div class="section" data-roles="ALL ADMIN COORD LIDER LT MEMBRO">
+      <h2>3.8 Lições da Semana</h2>
+      <p>Acesso rápido ao material de estudo da semana em PDF ou DOCX.</p>
+      <ul>
+        <li data-roles="ADMIN"><strong>Admin:</strong> Realiza o upload do material centralizado.</li>
+        <li><strong>Membros/Líderes:</strong> Baixam o material ativo diretamente na Home ou menu Lições.</li>
+      </ul>
+    </div>
+
+    <!-- 4. MINHA CÉLULA -->
+    <div class="section" data-roles="ALL LIDER LT MEMBRO">
+      <h1>4. Minha Célula</h1>
+      <p>Visão focada na sua comunidade local, com lista de membros e acesso rápido para interação.</p>
+    </div>
+
+    <!-- 5. RELATÓRIOS -->
+    <div class="section" data-roles="ALL ADMIN COORD">
+      <h1>5. Relatórios e Avisos</h1>
+      <p>Acompanhamento estratégico de frequência, novos membros e avisos globais.</p>
+    </div>
+
+    <div class="footer">
+      <p><strong>Vida na Vida</strong> — <em>Conectando pessoas, fortalecendo comunidades.</em></p>
+      <p style="font-size: 0.8rem; margin-top: 5px;">Comunidade Cristã Vida na Vida © 2026</p>
+    </div>
+
+  </div>
+
+  <script is:inline>
+    function filterByRole(role) {
+      // Update buttons
+      document.querySelectorAll('.nav-btn').forEach(btn => {
+        btn.classList.remove('active');
+        if (btn.innerText.toUpperCase().includes(role) || (role === 'ALL' && btn.innerText === 'Todos')) {
+          btn.classList.add('active');
+        }
+      });
+
+      // Update title
+      const titles = {
+        'ALL': 'Manual Completo',
+        'ADMIN': 'Manual do Administrador',
+        'COORD': 'Manual do Coordenador',
+        'LIDER': 'Manual do Líder',
+        'LT': 'Manual do Líder em Treinamento',
+        'MEMBRO': 'Manual do Membro'
+      };
+      document.getElementById('role-title').innerText = titles[role] || 'Manual do Usuário';
+
+      // Filter sections
+      const sections = document.querySelectorAll('.section');
+      sections.forEach(section => {
+        const roles = section.getAttribute('data-roles').split(' ');
+        if (role === 'ALL' || roles.includes(role)) {
+          section.classList.add('visible');
+        } else {
+          section.classList.remove('visible');
+        }
+      });
+
+      // Special handling for sub-elements with data-roles
+      document.querySelectorAll('[data-roles]').forEach(el => {
+        if (el.classList.contains('section')) return;
+        const roles = el.getAttribute('data-roles').split(' ');
+        if (role === 'ALL' || roles.includes(role)) {
+          el.style.display = '';
+        } else {
+          el.style.display = 'none';
+        }
+      });
+    }
+
+    // Initialize
+    window.onload = () => filterByRole('ALL');
+  </script>
+
+</body>
+</html>

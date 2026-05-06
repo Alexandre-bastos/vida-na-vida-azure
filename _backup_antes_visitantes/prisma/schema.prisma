@@ -15,12 +15,12 @@ model account {
   type              String
   provider          String
   providerAccountId String
-  refresh_token     String? @db.NVarChar(Max)
-  access_token      String? @db.NVarChar(Max)
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
   expires_at        Int?
   token_type        String?
   scope             String?
-  id_token          String? @db.NVarChar(Max)
+  id_token          String? @db.Text
   session_state     String?
   user              user    @relation(fields: [userId], references: [id], onDelete: Cascade, map: "Account_userId_fkey")
 
@@ -39,22 +39,20 @@ model cell {
   updatedAt    DateTime         @updatedAt
   leaderId     String?          @unique(map: "Cell_leaderId_key")
   leader       user?            @relation("CurrentCellLeader", fields: [leaderId], references: [id], map: "Cell_leaderId_fkey")
-  latitude     Float?
-  longitude    Float?
   memberships  cellmembership[]
   meetings     meeting[]
   visitors     visitor[]
 }
 
 model cellmembership {
-  id         String    @id @default(uuid())
-  startDate  DateTime  @default(now())
+  id         String                    @id @default(uuid())
+  startDate  DateTime                  @default(now())
   endDate    DateTime?
-  roleAtTime String    @default("MEMBRO")
+  roleAtTime String                    @default("MEMBRO")
   userId     String
   cellId     String
-  cell       cell      @relation(fields: [cellId], references: [id], onUpdate: NoAction, map: "CellMembership_cellId_fkey")
-  user       user      @relation(fields: [userId], references: [id], onUpdate: NoAction, map: "CellMembership_userId_fkey")
+  cell       cell                      @relation(fields: [cellId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "CellMembership_cellId_fkey")
+  user       user                      @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "CellMembership_userId_fkey")
 
   @@index([cellId], map: "CellMembership_cellId_fkey")
   @@index([userId], map: "CellMembership_userId_fkey")
@@ -69,9 +67,9 @@ model meeting {
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
   cellId    String
-  cell      cell       @relation(fields: [cellId], references: [id], onDelete: Cascade, map: "Meeting_cellId_fkey")
-  presences        presence[]
-  visitorPresences visitorattendance[]
+  cell      cell       @relation(fields: [cellId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "Meeting_cellId_fkey")
+  presences presence[]
+  visitors  visitor[]
 
   @@index([cellId], map: "Meeting_cellId_fkey")
 }
@@ -92,8 +90,8 @@ model presence {
   observations String?
   meetingId    String
   userId       String
-  meeting      meeting @relation(fields: [meetingId], references: [id], onUpdate: NoAction, map: "Presence_meetingId_fkey")
-  user         user    @relation(fields: [userId], references: [id], onUpdate: NoAction, map: "Presence_userId_fkey")
+  meeting      meeting @relation(fields: [meetingId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "Presence_meetingId_fkey")
+  user         user    @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "Presence_userId_fkey")
 
   @@unique([meetingId, userId], map: "Presence_meetingId_userId_key")
   @@index([userId], map: "Presence_userId_fkey")
@@ -123,8 +121,6 @@ model user {
   gender          String?
   city            String?
   neighborhood    String?
-  latitude        Float?
-  longitude       Float?
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
   accounts        account[]
@@ -132,8 +128,7 @@ model user {
   cellHistory     cellmembership[]
   presences       presence[]
   sessions        session[]
-  invitedVisitors visitor[]           @relation("VisitorInviter")
-  visitorMeetings visitorattendance[] @relation("VisitorMeetingBringer")
+  invitedVisitors visitor[]        @relation("VisitorInviter")
 }
 
 model verificationtoken {
@@ -148,37 +143,23 @@ model visitor {
   id           String   @id @default(uuid())
   name         String
   phone        String?
-  email        String?
-  address      String?
   observations String?
   createdAt    DateTime @default(now())
   invitedById  String?
   cellId       String?
-  
+  meetingId    String?
   cell         cell?    @relation(fields: [cellId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "Visitor_cellId_fkey")
   invitedBy    user?    @relation("VisitorInviter", fields: [invitedById], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "Visitor_invitedById_fkey")
-  
-  attendances  visitorattendance[]
+  meeting      meeting? @relation(fields: [meetingId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "Visitor_meetingId_fkey")
 
   @@index([cellId], map: "Visitor_cellId_fkey")
   @@index([invitedById], map: "Visitor_invitedById_fkey")
+  @@index([meetingId], map: "Visitor_meetingId_fkey")
 }
 
-model visitorattendance {
-  id           String  @id @default(uuid())
-  visitorId    String
-  meetingId    String
-  broughtById  String? 
-  
-  visitor      visitor @relation(fields: [visitorId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "VisitorAttendance_visitorId_fkey")
-  meeting      meeting @relation(fields: [meetingId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "VisitorAttendance_meetingId_fkey")
-  broughtBy    user?   @relation("VisitorMeetingBringer", fields: [broughtById], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "VisitorAttendance_broughtById_fkey")
 
-  @@unique([visitorId, meetingId], map: "VisitorAttendance_visitorId_meetingId_key")
-  @@index([meetingId], map: "VisitorAttendance_meetingId_fkey")
-  @@index([visitorId], map: "VisitorAttendance_visitorId_fkey")
-  @@index([broughtById], map: "VisitorAttendance_broughtById_fkey")
-}
+// Enums removidos pois SQL Server não suporta via Prisma Connector
+// Os campos foram alterados para String
 
 model lesson {
   id        String   @id @default(uuid())
@@ -186,7 +167,6 @@ model lesson {
   fileUrl   String
   fileName  String?
   active    Boolean  @default(false)
-  isNext    Boolean  @default(false)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
