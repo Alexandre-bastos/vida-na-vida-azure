@@ -98,7 +98,7 @@ const activeLessonCount = lessons.filter(l => l.active).length;
       </div>
     </div>
 
-    <div class="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
+    <div class="bg-white rounded-3xl shadow-sm border border-gray-100">
       {lessons.length === 0 ? (
         <div class="p-8 text-center flex flex-col items-center">
           <div class="w-16 h-16 rounded-full bg-gray-50 flex items-center justify-center mb-4 text-gray-300">
@@ -111,7 +111,7 @@ const activeLessonCount = lessons.filter(l => l.active).length;
         <div class="divide-y divide-gray-100" id="lessons-list">
           {lessons.map(lesson => (
             <div 
-              class={`lesson-row p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-colors ${lesson.active ? 'bg-green-50/30' : 'hover:bg-gray-50'}`}
+              class={`lesson-row p-5 sm:p-6 flex flex-col lg:flex-row lg:items-center justify-between gap-4 transition-colors ${lesson.active ? 'bg-green-50/30' : 'hover:bg-gray-50'} rounded-3xl`}
               data-title={lesson.title.toLowerCase()}
               data-is-next={lesson.isNext ? 'true' : 'false'}
               data-active={lesson.active ? 'true' : 'false'}
@@ -134,8 +134,8 @@ const activeLessonCount = lessons.filter(l => l.active).length;
                 </div>
               </div>
               
-              <div class="flex items-center gap-3 sm:ml-auto shrink-0 w-full sm:w-auto">
-                <form method="POST" class="flex-1 sm:flex-none">
+              <div class="flex items-center gap-3 lg:ml-auto shrink-0 w-full lg:w-auto">
+                <form method="POST" class="flex-1 lg:flex-none">
                   <input type="hidden" name="lessonId" value={lesson.id} />
                   {lesson.active ? (
                     <input type="hidden" name="action" value="deactivate" />

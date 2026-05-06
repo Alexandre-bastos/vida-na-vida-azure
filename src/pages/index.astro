@@ -1,6 +1,6 @@
 ---
 import AppLayout from '../layouts/AppLayout.astro';
-import { Calendar, Users, Megaphone, ArrowRight, UserPlus, BookOpen, Download, Heart } from 'lucide-react';
+import { Calendar, Users, Megaphone, ArrowRight, UserPlus, BookOpen, Download, Heart, ChevronLeft, ChevronRight } from 'lucide-react';
 
 import prisma from '../lib/prisma';
 
@@ -244,11 +244,11 @@ const profileUpdated = Astro.url.searchParams.get('profile_updated') === '1';
 					{/* Setas de navegação (Desktop) */}
 					{lessonsToShow.length > 1 && (
 						<>
-							<button onclick="document.getElementById('lessons-carousel').scrollBy({left: -document.getElementById('lessons-carousel').offsetWidth, behavior: 'smooth'})" class="absolute left-4 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/80 backdrop-blur shadow-md items-center justify-center text-brand-primary hover:bg-white hidden sm:flex opacity-0 group-hover:opacity-100 transition-opacity z-20">
-								<ArrowRight size={16} class="rotate-180" />
+							<button onclick="document.getElementById('lessons-carousel').scrollBy({left: -document.getElementById('lessons-carousel').offsetWidth, behavior: 'smooth'})" class="absolute left-2 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-white shadow-lg items-center justify-center text-brand-primary hover:bg-brand-light/20 hidden sm:flex opacity-0 group-hover:opacity-100 transition-opacity z-30 border border-gray-100">
+								<ChevronLeft size={20} />
 							</button>
-							<button onclick="document.getElementById('lessons-carousel').scrollBy({left: document.getElementById('lessons-carousel').offsetWidth, behavior: 'smooth'})" class="absolute right-4 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/80 backdrop-blur shadow-md items-center justify-center text-brand-primary hover:bg-white hidden sm:flex opacity-0 group-hover:opacity-100 transition-opacity z-20">
-								<ArrowRight size={16} />
+							<button onclick="document.getElementById('lessons-carousel').scrollBy({left: document.getElementById('lessons-carousel').offsetWidth, behavior: 'smooth'})" class="absolute right-2 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-white shadow-lg items-center justify-center text-brand-primary hover:bg-brand-light/20 hidden sm:flex opacity-0 group-hover:opacity-100 transition-opacity z-30 border border-gray-100">
+								<ChevronRight size={20} />
 							</button>
 						</>
 					)}
