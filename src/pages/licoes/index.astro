@@ -73,11 +73,30 @@ const activeLessonCount = lessons.filter(l => l.active).length;
         <span class="text-sm">Nenhuma lição está ativa no momento. Os membros não verão o botão de download na tela inicial.</span>
       </div>
     )}
-    {activeLessonCount > 1 && (
-      <div class="bg-red-50 border border-red-200 text-red-800 p-4 rounded-2xl flex items-center gap-3">
-        <span class="text-sm"><strong>Aviso:</strong> Há mais de uma lição ativa. Isso não deveria acontecer. Por favor, desative as antigas.</span>
+
+    {/* Filtros */}
+    <div class="bg-white p-4 rounded-3xl shadow-sm border border-gray-100 flex flex-col sm:flex-row gap-4">
+      <div class="flex-1">
+        <input 
+          type="text" 
+          id="search-lesson" 
+          placeholder="Buscar lição por título..." 
+          class="w-full px-5 py-3 rounded-2xl border border-gray-100 bg-gray-50 focus:bg-white focus:outline-none focus:ring-4 focus:ring-brand-primary/5 text-sm"
+        />
       </div>
-    )}
+      <div class="flex gap-3">
+        <select id="filter-type" class="px-4 py-3 rounded-2xl border border-gray-100 bg-gray-50 text-sm focus:outline-none">
+          <option value="ALL">Todos os Tipos</option>
+          <option value="NORMAL">Célula Normal</option>
+          <option value="NEXT">Célula NEXT</option>
+        </select>
+        <select id="filter-status" class="px-4 py-3 rounded-2xl border border-gray-100 bg-gray-50 text-sm focus:outline-none">
+          <option value="ALL">Todos os Status</option>
+          <option value="ACTIVE">Ativas</option>
+          <option value="INACTIVE">Inativas</option>
+        </select>
+      </div>
+    </div>
 
     <div class="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
       {lessons.length === 0 ? (
@@ -89,9 +108,14 @@ const activeLessonCount = lessons.filter(l => l.active).length;
           <p class="text-sm text-gray-500 mt-1 max-w-xs mx-auto">Você ainda não enviou nenhum material de célula.</p>
         </div>
       ) : (
-        <div class="divide-y divide-gray-100">
+        <div class="divide-y divide-gray-100" id="lessons-list">
           {lessons.map(lesson => (
-            <div class={`p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-colors ${lesson.active ? 'bg-green-50/30' : 'hover:bg-gray-50'}`}>
+            <div 
+              class={`lesson-row p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-colors ${lesson.active ? 'bg-green-50/30' : 'hover:bg-gray-50'}`}
+              data-title={lesson.title.toLowerCase()}
+              data-is-next={lesson.isNext ? 'true' : 'false'}
+              data-active={lesson.active ? 'true' : 'false'}
+            >
               <div class="flex items-start gap-4">
                 <div class={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${lesson.active ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-500'}`}>
                   {lesson.active ? <CheckCircle size={20} /> : <FileText size={20} />}
@@ -134,3 +158,36 @@ const activeLessonCount = lessons.filter(l => l.active).length;
     </div>
   </div>
 </AppLayout>
+
+<script is:inline>
+  const searchInput = document.getElementById('search-lesson');
+  const typeFilter = document.getElementById('filter-type');
+  const statusFilter = document.getElementById('filter-status');
+  const rows = document.querySelectorAll('.lesson-row');
+
+  function filterLessons() {
+    const searchTerm = searchInput.value.toLowerCase();
+    const typeValue = typeFilter.value;
+    const statusValue = statusFilter.value;
+
+    rows.forEach(row => {
+      const title = row.getAttribute('data-title');
+      const isNext = row.getAttribute('data-is-next') === 'true';
+      const isActive = row.getAttribute('data-active') === 'true';
+
+      const matchesSearch = title.includes(searchTerm);
+      const matchesType = typeValue === 'ALL' || (typeValue === 'NEXT' && isNext) || (typeValue === 'NORMAL' && !isNext);
+      const matchesStatus = statusValue === 'ALL' || (statusValue === 'ACTIVE' && isActive) || (statusValue === 'INACTIVE' && !isActive);
+
+      if (matchesSearch && matchesType && matchesStatus) {
+        row.style.display = '';
+      } else {
+        row.style.display = 'none';
+      }
+    });
+  }
+
+  searchInput?.addEventListener('input', filterLessons);
+  typeFilter?.addEventListener('change', filterLessons);
+  statusFilter?.addEventListener('change', filterLessons);
+</script>

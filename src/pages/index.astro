@@ -212,7 +212,7 @@ const profileUpdated = Astro.url.searchParams.get('profile_updated') === '1';
 		<!-- Lições Ativas (Carrossel) -->
 		{lessonsToShow.length > 0 && (
 			<section class="relative">
-				<div id="lessons-carousel" class="flex overflow-x-auto snap-x snap-mandatory scrollbar-hide gap-0 rounded-[2.5rem] shadow-sm">
+				<div id="lessons-carousel" class="flex overflow-x-auto snap-x snap-mandatory scrollbar-hide gap-0 rounded-[2.5rem] shadow-sm relative group">
 					{lessonsToShow.map((lesson) => (
 						<div class={`min-w-full snap-start p-1 bg-gradient-to-r ${lesson.isNext ? 'from-blue-600 to-indigo-700' : 'from-brand-primary to-brand-accent'}`}>
 							<div class="bg-white rounded-[2.2rem] p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -226,7 +226,8 @@ const profileUpdated = Astro.url.searchParams.get('profile_updated') === '1';
 												{lesson.isNext ? 'Lição Célula NEXT' : 'Lição da Semana'}
 											</span>
 											{lessonsToShow.length > 1 && <span class="w-1 h-1 rounded-full bg-gray-300"></span>}
-											{lessonsToShow.length > 1 && <span class="text-[9px] text-gray-400 font-bold uppercase">Arraste para o lado &rarr;</span>}
+											{lessonsToShow.length > 1 && <span class="text-[9px] text-gray-400 font-bold uppercase hidden sm:inline">Use as setas ou clique abaixo</span>}
+											{lessonsToShow.length > 1 && <span class="text-[9px] text-gray-400 font-bold uppercase sm:hidden">Arraste para o lado &rarr;</span>}
 										</div>
 										<h3 class="font-bold text-brand-dark mt-0.5 line-clamp-1">{lesson.title}</h3>
 										<p class="text-xs text-gray-500 mt-1 line-clamp-1">{lesson.fileName || 'Material da célula'}</p>
@@ -239,12 +240,28 @@ const profileUpdated = Astro.url.searchParams.get('profile_updated') === '1';
 							</div>
 						</div>
 					))}
+
+					{/* Setas de navegação (Desktop) */}
+					{lessonsToShow.length > 1 && (
+						<>
+							<button onclick="document.getElementById('lessons-carousel').scrollBy({left: -document.getElementById('lessons-carousel').offsetWidth, behavior: 'smooth'})" class="absolute left-4 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/80 backdrop-blur shadow-md items-center justify-center text-brand-primary hover:bg-white hidden sm:flex opacity-0 group-hover:opacity-100 transition-opacity z-20">
+								<ArrowRight size={16} class="rotate-180" />
+							</button>
+							<button onclick="document.getElementById('lessons-carousel').scrollBy({left: document.getElementById('lessons-carousel').offsetWidth, behavior: 'smooth'})" class="absolute right-4 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/80 backdrop-blur shadow-md items-center justify-center text-brand-primary hover:bg-white hidden sm:flex opacity-0 group-hover:opacity-100 transition-opacity z-20">
+								<ArrowRight size={16} />
+							</button>
+						</>
+					)}
 				</div>
 				
 				{lessonsToShow.length > 1 && (
-					<div class="flex justify-center gap-1 mt-2">
+					<div class="flex justify-center gap-1.5 mt-2">
 						{lessonsToShow.map((_, i) => (
-							<div class="lesson-dot w-1 h-1 rounded-full bg-gray-300 transition-all duration-300" data-index={i}></div>
+							<button 
+								class="lesson-dot w-1.5 h-1.5 rounded-full bg-gray-300 transition-all duration-300 cursor-pointer hover:bg-brand-primary/50" 
+								data-index={i}
+								aria-label={`Lição ${i + 1}`}
+							></button>
 						))}
 					</div>
 				)}
@@ -258,12 +275,23 @@ const profileUpdated = Astro.url.searchParams.get('profile_updated') === '1';
 							const index = Math.round(lCarousel.scrollLeft / lCarousel.offsetWidth);
 							lDots.forEach((dot, i) => {
 								if (i === index) {
-									dot.classList.add('bg-brand-primary', 'w-3');
+									dot.classList.add('bg-brand-primary', 'w-4');
 									dot.classList.remove('bg-gray-300');
 								} else {
-									dot.classList.remove('bg-brand-primary', 'w-3');
+									dot.classList.remove('bg-brand-primary', 'w-4');
 									dot.classList.add('bg-gray-300');
 								}
+							});
+						});
+
+						// Clique nos dots
+						lDots.forEach(dot => {
+							dot.addEventListener('click', () => {
+								const index = parseInt(dot.dataset.index);
+								lCarousel.scrollTo({
+									left: index * lCarousel.offsetWidth,
+									behavior: 'smooth'
+								});
 							});
 						});
 					}
