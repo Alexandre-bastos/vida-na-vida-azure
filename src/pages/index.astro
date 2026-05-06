@@ -211,8 +211,8 @@ const profileUpdated = Astro.url.searchParams.get('profile_updated') === '1';
 
 		<!-- Lições Ativas (Carrossel) -->
 		{lessonsToShow.length > 0 && (
-			<section class="relative">
-				<div id="lessons-carousel" class="flex overflow-x-auto snap-x snap-mandatory scrollbar-hide gap-0 rounded-[2.5rem] shadow-sm relative group">
+			<section class="relative group">
+				<div id="lessons-carousel" class="flex overflow-x-auto snap-x snap-mandatory scrollbar-hide gap-0 rounded-[2.5rem] shadow-sm">
 					{lessonsToShow.map((lesson) => (
 						<div class={`min-w-full snap-start p-1 bg-gradient-to-r ${lesson.isNext ? 'from-blue-600 to-indigo-700' : 'from-brand-primary to-brand-accent'}`}>
 							<div class="bg-white rounded-[2.2rem] p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -220,7 +220,7 @@ const profileUpdated = Astro.url.searchParams.get('profile_updated') === '1';
 									<div class={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${lesson.isNext ? 'bg-blue-50 text-blue-600' : 'bg-brand-light/30 text-brand-primary'}`}>
 										<BookOpen size={24} />
 									</div>
-									<div>
+									<div class="min-w-0 flex-1">
 										<div class="flex items-center gap-2">
 											<span class={`text-[10px] font-bold uppercase tracking-widest ${lesson.isNext ? 'text-blue-600' : 'text-brand-primary'}`}>
 												{lesson.isNext ? 'Lição Célula NEXT' : 'Lição da Semana'}
@@ -229,8 +229,8 @@ const profileUpdated = Astro.url.searchParams.get('profile_updated') === '1';
 											{lessonsToShow.length > 1 && <span class="text-[9px] text-gray-400 font-bold uppercase hidden sm:inline">Use as setas ou clique abaixo</span>}
 											{lessonsToShow.length > 1 && <span class="text-[9px] text-gray-400 font-bold uppercase sm:hidden">Arraste para o lado &rarr;</span>}
 										</div>
-										<h3 class="font-bold text-brand-dark mt-0.5 line-clamp-1">{lesson.title}</h3>
-										<p class="text-xs text-gray-500 mt-1 line-clamp-1">{lesson.fileName || 'Material da célula'}</p>
+										<h3 class="font-bold text-brand-dark mt-0.5 truncate">{lesson.title}</h3>
+										<p class="text-xs text-gray-500 mt-1 truncate">{lesson.fileName || 'Material da célula'}</p>
 									</div>
 								</div>
 								<a href={lesson.fileUrl} target="_blank" rel="noopener noreferrer" class={`flex items-center justify-center gap-2 text-white px-6 py-3 rounded-xl font-bold text-sm shadow-lg transition-all shrink-0 w-full sm:w-auto ${lesson.isNext ? 'bg-blue-600 shadow-blue-600/20' : 'bg-brand-primary shadow-brand-primary/20'} hover:brightness-110`}>
@@ -240,19 +240,19 @@ const profileUpdated = Astro.url.searchParams.get('profile_updated') === '1';
 							</div>
 						</div>
 					))}
-
-					{/* Setas de navegação (Desktop) */}
-					{lessonsToShow.length > 1 && (
-						<>
-							<button onclick="document.getElementById('lessons-carousel').scrollBy({left: -document.getElementById('lessons-carousel').offsetWidth, behavior: 'smooth'})" class="absolute left-2 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-white shadow-lg items-center justify-center text-brand-primary hover:bg-brand-light/20 hidden sm:flex opacity-0 group-hover:opacity-100 transition-opacity z-30 border border-gray-100">
-								<ChevronLeft size={20} />
-							</button>
-							<button onclick="document.getElementById('lessons-carousel').scrollBy({left: document.getElementById('lessons-carousel').offsetWidth, behavior: 'smooth'})" class="absolute right-2 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-white shadow-lg items-center justify-center text-brand-primary hover:bg-brand-light/20 hidden sm:flex opacity-0 group-hover:opacity-100 transition-opacity z-30 border border-gray-100">
-								<ChevronRight size={20} />
-							</button>
-						</>
-					)}
 				</div>
+
+				{/* Setas de navegação (Desktop) */}
+				{lessonsToShow.length > 1 && (
+					<>
+						<button onclick="document.getElementById('lessons-carousel').scrollBy({left: -document.getElementById('lessons-carousel').offsetWidth, behavior: 'smooth'})" class="absolute left-2 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-white shadow-lg items-center justify-center text-brand-primary hover:bg-brand-light/20 hidden sm:flex opacity-0 group-hover:opacity-100 transition-opacity z-30 border border-gray-100">
+							<ChevronLeft size={20} />
+						</button>
+						<button onclick="document.getElementById('lessons-carousel').scrollBy({left: document.getElementById('lessons-carousel').offsetWidth, behavior: 'smooth'})" class="absolute right-2 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-white shadow-lg items-center justify-center text-brand-primary hover:bg-brand-light/20 hidden sm:flex opacity-0 group-hover:opacity-100 transition-opacity z-30 border border-gray-100">
+							<ChevronRight size={20} />
+						</button>
+					</>
+				)}
 				
 				{lessonsToShow.length > 1 && (
 					<div class="flex justify-center gap-1.5 mt-2">

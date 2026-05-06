@@ -26,13 +26,26 @@ const cellMembershipFilter = cellId ? { cellHistory: { some: { cellId, endDate: 
 
 // Buscar Indicadores Principais
 const activeCellsCount = await prisma.cell.count({ where: cellFilter });
-const activeMembersCount = await prisma.user.count({ where: { active: true, ...cellMembershipFilter } });
-const inactiveMembersCount = await prisma.user.count({ where: { active: false, ...cellMembershipFilter } });
+const activeMembersCount = await prisma.user.count({ 
+  where: { 
+    active: true, 
+    role: { notIn: ['ADMIN', 'COORDENADOR'] },
+    ...cellMembershipFilter 
+  } 
+});
+const inactiveMembersCount = await prisma.user.count({ 
+  where: { 
+    active: false, 
+    role: { notIn: ['ADMIN', 'COORDENADOR'] },
+    ...cellMembershipFilter 
+  } 
+});
 
 // Novos Membros no período selecionado
 const newMembersCount = await prisma.user.count({
   where: {
     active: true,
+    role: { notIn: ['ADMIN', 'COORDENADOR'] },
     createdAt: {
       gte: startDate || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
       lte: endDate
