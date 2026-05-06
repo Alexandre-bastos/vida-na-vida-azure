@@ -195,12 +195,14 @@ Esta funcionalidade centraliza os materiais de estudo da semana.
 #### Para Administradores:
 1. Acesse o menu de gerenciamento de lições.
 2. Faça o upload do arquivo (PDF ou DOCX).
-3. O sistema manterá apenas **um arquivo ativo** por vez, que será exibido em destaque para toda a igreja.
-4. O histórico de lições anteriores permanece arquivado para consulta.
+3. **Lição NEXT:** Se o material for específico para as células de jovens/estratégicas, marque a opção **"Lição Célula NEXT"**.
+4. O sistema permite ter **uma lição normal e uma lição NEXT** ativas simultaneamente. Ao ativar uma nova, ela substitui apenas a anterior do mesmo tipo.
+5. O histórico de lições anteriores permanece arquivado para consulta.
 
 #### Para Membros e Líderes:
-1. Toque no card de destaque na **Home** ou acesse o ícone de **Lições** no menu inferior.
-2. O material atual será baixado ou aberto diretamente no seu dispositivo.
+1. Na **Home**, o card de lições agora funciona como um carrossel caso existam os dois tipos de material ativos.
+2. Arraste para o lado ou clique nos indicadores para alternar entre a "Lição da Semana" e a "Lição Célula NEXT".
+3. O download é livre para todos os perfis.
 
 ---
 

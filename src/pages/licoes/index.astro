@@ -12,22 +12,27 @@ if (userRole !== 'ADMIN' && userRole !== 'COORDENADOR') {
   return Astro.redirect('/');
 }
 
-// Lidar com ativação/desativação via formulário
 if (Astro.request.method === 'POST') {
   const formData = await Astro.request.formData();
   const lessonId = formData.get('lessonId')?.toString();
   const action = formData.get('action')?.toString();
 
   if (lessonId && action === 'activate') {
-    // Primeiro, desativar todas as lições
-    await prisma.lesson.updateMany({
-      data: { active: false }
-    });
-    // Depois, ativar apenas a escolhida
-    await prisma.lesson.update({
-      where: { id: lessonId },
-      data: { active: true }
-    });
+    // Buscar a lição para saber o tipo
+    const lessonToActivate = await prisma.lesson.findUnique({ where: { id: lessonId } });
+    
+    if (lessonToActivate) {
+      // Desativar apenas as lições do MESMO tipo
+      await prisma.lesson.updateMany({
+        where: { isNext: lessonToActivate.isNext },
+        data: { active: false }
+      });
+      // Depois, ativar apenas a escolhida
+      await prisma.lesson.update({
+        where: { id: lessonId },
+        data: { active: true }
+      });
+    }
   } else if (lessonId && action === 'deactivate') {
     await prisma.lesson.update({
       where: { id: lessonId },
@@ -92,14 +97,15 @@ const activeLessonCount = lessons.filter(l => l.active).length;
                   {lesson.active ? <CheckCircle size={20} /> : <FileText size={20} />}
                 </div>
                 <div>
-                  <h3 class="font-bold text-gray-800 flex items-center gap-2">
+                  <h3 class="font-bold text-gray-800 flex items-center flex-wrap gap-2">
                     {lesson.title}
+                    {lesson.isNext && <span class="bg-blue-100 text-blue-700 text-[9px] uppercase tracking-wider font-bold px-2 py-0.5 rounded-md">Next</span>}
                     {lesson.active && <span class="bg-green-100 text-green-700 text-[9px] uppercase tracking-wider font-bold px-2 py-0.5 rounded-md">Ativa</span>}
                   </h3>
                   <div class="text-xs text-gray-500 mt-1 flex items-center gap-2">
                     <span class="truncate max-w-[200px] sm:max-w-xs" title={lesson.fileName || 'Arquivo'}>{lesson.fileName || 'Arquivo'}</span>
                     <span>•</span>
-                    <span>{new Date(lesson.createdAt).toLocaleDateString('pt-BR')}</span>
+                    <span class="shrink-0">{new Date(lesson.createdAt).toLocaleDateString('pt-BR')}</span>
                   </div>
                 </div>
               </div>
