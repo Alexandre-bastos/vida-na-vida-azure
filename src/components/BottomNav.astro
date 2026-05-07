@@ -15,7 +15,7 @@ const isLider = userRole.startsWith('LIDER');
       <span class="text-[10px] font-semibold mt-1">Início</span>
     </a>
     
-    {(isAdmin || isCoordinator) && !userRole.startsWith('LIDER') && (
+    {(isAdmin || isCoordinator) && (
       <a href="/celulas" class="flex flex-col items-center justify-center w-full h-full text-gray-400 hover:text-brand-primary transition-colors">
         <Users size={22} />
         <span class="text-[10px] font-medium mt-1">Células</span>

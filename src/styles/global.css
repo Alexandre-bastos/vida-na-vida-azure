@@ -13,4 +13,26 @@
   html, body {
     @apply bg-brand-bg text-brand-dark font-sans antialiased h-full w-full overflow-x-hidden;
   }
+
+  /* Centralização Global de Modais (Dialog) */
+  dialog {
+    @apply fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 m-0 p-0 border-none outline-none bg-white shadow-2xl rounded-[2.5rem] overflow-hidden;
+    max-height: 90vh;
+    max-width: 95vw;
+  }
+
+  dialog::backdrop {
+    @apply bg-brand-dark/40 backdrop-blur-sm;
+  }
+
+  /* Scrollbar suave para modais */
+  dialog div::-webkit-scrollbar {
+    width: 4px;
+  }
+  dialog div::-webkit-scrollbar-track {
+    @apply bg-transparent;
+  }
+  dialog div::-webkit-scrollbar-thumb {
+    @apply bg-gray-200 rounded-full;
+  }
 }

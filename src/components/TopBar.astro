@@ -25,11 +25,23 @@ function roleLabel(role) {
     <span class="font-bold text-brand-dark tracking-tight hidden sm:block text-sm">Vida na Vida</span>
   </a>
   
-  <div class="flex items-center gap-2">
+  <div class="flex items-center gap-1">
+    {(isAdmin || isCoordinator) && (
+      <a href="/celulas" class="hidden sm:flex items-center gap-2 px-3 py-2 text-gray-500 hover:text-brand-primary font-bold text-[11px] uppercase tracking-wider transition-all">
+        <Users size={16} />
+        Células
+      </a>
+    )}
     {canManageMembers && (
-      <a href="/membros" class="hidden sm:flex items-center gap-2 px-4 py-2 text-gray-500 hover:text-brand-primary font-bold text-[11px] uppercase tracking-wider transition-all">
+      <a href="/membros" class="hidden sm:flex items-center gap-2 px-3 py-2 text-gray-500 hover:text-brand-primary font-bold text-[11px] uppercase tracking-wider transition-all">
         <UserPlus size={16} />
         Membros
+      </a>
+    )}
+    {(isAdmin || isCoordinator) && (
+      <a href="/celulas" class="hidden sm:flex items-center gap-2 px-4 py-2 text-gray-500 hover:text-brand-primary font-bold text-[11px] uppercase tracking-wider transition-all">
+        <Users size={16} />
+        Células
       </a>
     )}
     {userRole.startsWith('LIDER') && (

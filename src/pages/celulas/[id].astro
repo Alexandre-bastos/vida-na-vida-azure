@@ -314,8 +314,8 @@ if (Astro.request.method === 'POST') {
 		</section>
 
 		<!-- Modal de Adicionar Membro (Simplificado para o MVP) -->
-		<dialog id="modal-add-member" class="rounded-[2.5rem] shadow-2xl p-0 border-none backdrop:bg-brand-dark/40 overflow-hidden w-full max-w-sm">
-			<div class="p-8 space-y-6">
+		<dialog id="modal-add-member" class="overflow-hidden w-full max-w-sm">
+			<div class="p-8 space-y-6 max-h-[85vh] overflow-y-auto">
 				<div class="text-center">
 					<div class="w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center text-brand-primary mx-auto mb-4">
 						<UserPlus size={32} />
@@ -350,8 +350,8 @@ if (Astro.request.method === 'POST') {
 		</dialog>
 
 		<!-- Modal de Editar Célula -->
-		<dialog id="modal-edit-cell" class="rounded-[2.5rem] shadow-2xl p-0 border-none backdrop:bg-brand-dark/40 overflow-hidden w-full max-w-sm">
-			<div class="p-8 space-y-6">
+		<dialog id="modal-edit-cell" class="overflow-hidden w-full max-w-sm">
+			<div class="p-8 space-y-6 max-h-[85vh] overflow-y-auto">
 				<div class="text-center">
 					<div class="w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center text-brand-primary mx-auto mb-4">
 						<Edit2 size={32} />
