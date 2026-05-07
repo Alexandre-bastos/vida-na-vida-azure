@@ -62,14 +62,15 @@ if (!canViewCell) {
 	return Astro.redirect('/celulas');
 }
 
-// Buscar todos os usuários que NÃO estão em nenhuma célula ativa para adicionar como membros
-// Administradores não devem aparecer na lista
+// Buscar todos os usuários disponíveis para adicionar como membros
+// Se a célula for REGULAR: usuários que não estão em nenhuma célula REGULAR ativa
+// Se a célula for ESPECIAL: usuários que não estão NESTA célula
 const availableUsers = await prisma.user.findMany({
   where: {
     role: { not: 'ADMIN' },
-    cellHistory: {
-      none: { endDate: null }
-    }
+    memberships: cell.kind === 'REGULAR' 
+      ? { none: { endDate: null, cell: { kind: 'REGULAR' } } }
+      : { none: { endDate: null, cellId: id } }
   },
   orderBy: { name: 'asc' }
 });
@@ -148,6 +149,7 @@ if (Astro.request.method === 'POST') {
         const neighborhood = formData.get('neighborhood')?.toString();
         const dayOfWeek = formData.get('dayOfWeek')?.toString();
         const time = formData.get('time')?.toString();
+        const kind = formData.get('kind')?.toString();
 
         if (name) {
             await prisma.cell.update({
@@ -157,7 +159,8 @@ if (Astro.request.method === 'POST') {
                     address,
                     neighborhood: neighborhood || null,
                     dayOfWeek: dayOfWeek ? parseInt(dayOfWeek) : null,
-                    time
+                    time,
+                    kind: kind as any
                 }
             });
             return Astro.redirect(`/celulas/${id}`);
@@ -200,6 +203,12 @@ if (Astro.request.method === 'POST') {
 				<div class="bg-brand-light/10 px-3 py-1 rounded-full text-[10px] font-bold text-brand-primary uppercase">
 					{cell.memberships.length} Membros
 				</div>
+			</div>
+
+			<div class="flex items-center gap-2 mt-2">
+				<span class={`px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider ${cell.kind === 'ESPECIAL' ? 'bg-amber-50 text-amber-600 border border-amber-100' : 'bg-blue-50 text-blue-600 border border-blue-100'}`}>
+					{cell.kind === 'ESPECIAL' ? 'Célula Especial / Interesse' : 'Célula Regular'}
+				</span>
 			</div>
 
 			<div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4 border-t border-gray-50">
@@ -406,6 +415,14 @@ if (Astro.request.method === 'POST') {
 							<label for="edit-time" class="text-[11px] font-bold text-gray-400 uppercase tracking-wider ml-1">Hora</label>
 							<input type="time" id="edit-time" name="time" value={cell.time || ''} class="w-full px-4 py-4 rounded-2xl border border-gray-100 bg-gray-50/50 text-sm" />
 						</div>
+					</div>
+
+					<div class="space-y-1.5">
+						<label for="edit-kind" class="text-[11px] font-bold text-gray-400 uppercase tracking-wider ml-1">Tipo da Célula</label>
+						<select id="edit-kind" name="kind" class="w-full px-4 py-4 rounded-2xl border border-gray-100 bg-gray-50/50 text-sm appearance-none">
+							<option value="REGULAR" selected={cell.kind === 'REGULAR'}>Célula Regular</option>
+							<option value="ESPECIAL" selected={cell.kind === 'ESPECIAL'}>Célula Especial</option>
+						</select>
 					</div>
 
 					<div class="flex gap-3 pt-4">

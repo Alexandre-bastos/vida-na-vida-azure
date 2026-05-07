@@ -30,6 +30,7 @@ if (Astro.request.method === 'POST') {
     const dayOfWeek = formData.get('dayOfWeek')?.toString();
     const time = formData.get('time')?.toString();
     const leaderId = formData.get('leaderId')?.toString();
+    const kind = formData.get('kind')?.toString() || 'REGULAR';
 
     if (!name) {
       error = 'O nome da célula é obrigatório.';
@@ -42,6 +43,7 @@ if (Astro.request.method === 'POST') {
           dayOfWeek: dayOfWeek ? parseInt(dayOfWeek) : null,
           time,
           leaderId: leaderId || null,
+          kind: kind as any,
         }
       });
       return Astro.redirect('/celulas');
@@ -104,6 +106,18 @@ if (Astro.request.method === 'POST') {
 						{potentialLeaders.map(leader => (
 							<option value={leader.id}>{leader.name}</option>
 						))}
+					</select>
+				</div>
+
+				<div class="space-y-1.5">
+					<label for="kind" class="text-[11px] font-bold text-gray-400 uppercase tracking-wider ml-1">Tipo da Célula</label>
+					<select 
+						id="kind" 
+						name="kind" 
+						class="w-full px-5 py-4 rounded-2xl border border-gray-100 bg-gray-50/50 focus:bg-white focus:ring-4 focus:ring-brand-primary/10 focus:border-brand-primary focus:outline-none transition-all text-sm appearance-none"
+					>
+						<option value="REGULAR">Célula Regular (Padrão)</option>
+						<option value="ESPECIAL">Célula Especial (Interesse/Online)</option>
 					</select>
 				</div>
 			</div>

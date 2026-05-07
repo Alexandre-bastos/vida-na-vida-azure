@@ -41,6 +41,7 @@ model cell {
   leader       user?            @relation("CurrentCellLeader", fields: [leaderId], references: [id], map: "Cell_leaderId_fkey")
   latitude     Float?
   longitude    Float?
+  kind         String           @default("REGULAR")
   memberships  cellmembership[]
   meetings     meeting[]
   visitors     visitor[]

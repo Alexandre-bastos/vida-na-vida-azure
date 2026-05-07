@@ -63,7 +63,7 @@ const totalCount = meeting.presences.length;
           </div>
           <div class="flex items-center gap-2 mt-1 text-sm text-gray-500">
             <Calendar size={16} />
-            {new Date(meeting.date).toLocaleDateString()} às {new Date(meeting.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            {new Date(meeting.date).toLocaleDateString('pt-BR')} às {new Date(meeting.date).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
           </div>
         </div>
 

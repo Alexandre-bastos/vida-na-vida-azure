@@ -78,7 +78,12 @@ const cells = await prisma.cell.findMany({
 									<Users size={24} />
 								</div>
 								<div>
-									<h3 class="font-bold text-brand-dark">{cell.name}</h3>
+									<div class="flex items-center gap-2">
+										<h3 class="font-bold text-brand-dark">{cell.name}</h3>
+										{cell.kind === 'ESPECIAL' && (
+											<span class="bg-amber-50 text-amber-600 text-[8px] font-black px-1.5 py-0.5 rounded-md uppercase border border-amber-100">Especial</span>
+										)}
+									</div>
 									<p class="text-xs text-gray-500 mt-0.5">Líder: {cell.leader?.name || 'Não definido'}</p>
 								</div>
 							</div>

@@ -170,7 +170,7 @@ const meetingsList = meetingsListRaw.map(m => {
                 <div>
                   <div class="flex items-center gap-2 mb-1">
                     <span class="px-2 py-0.5 rounded-md bg-brand-light/30 text-brand-dark text-xs font-bold tracking-wider">{m.cell?.name}</span>
-                    <span class="text-xs text-gray-400 font-medium">{new Date(m.date).toLocaleDateString()}</span>
+                    <span class="text-xs text-gray-400 font-medium">{new Date(m.date).toLocaleDateString('pt-BR')}</span>
                   </div>
                   <div class="font-bold text-gray-800 text-lg">{m.topic || 'Encontro da Célula'}</div>
                   <div class="text-sm text-gray-500 mt-1 flex flex-wrap gap-3">
