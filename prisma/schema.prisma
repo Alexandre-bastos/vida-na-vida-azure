@@ -38,10 +38,10 @@ model cell {
   createdAt    DateTime         @default(now())
   updatedAt    DateTime         @updatedAt
   leaderId     String?          @unique(map: "Cell_leaderId_key")
-  leader       user?            @relation("CurrentCellLeader", fields: [leaderId], references: [id], map: "Cell_leaderId_fkey")
   latitude     Float?
   longitude    Float?
   kind         String           @default("REGULAR")
+  leader       user?            @relation("CurrentCellLeader", fields: [leaderId], references: [id], map: "Cell_leaderId_fkey")
   memberships  cellmembership[]
   meetings     meeting[]
   visitors     visitor[]
@@ -62,15 +62,15 @@ model cellmembership {
 }
 
 model meeting {
-  id        String     @id @default(uuid())
-  date      DateTime
-  topic     String?
-  report    String?
-  photoUrl  String?
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
-  cellId    String
-  cell      cell       @relation(fields: [cellId], references: [id], onDelete: Cascade, map: "Meeting_cellId_fkey")
+  id               String              @id @default(uuid())
+  date             DateTime
+  topic            String?
+  report           String?
+  photoUrl         String?
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+  cellId           String
+  cell             cell                @relation(fields: [cellId], references: [id], onDelete: Cascade, map: "Meeting_cellId_fkey")
   presences        presence[]
   visitorPresences visitorattendance[]
 
@@ -111,25 +111,25 @@ model session {
 }
 
 model user {
-  id              String           @id @default(uuid())
+  id              String              @id @default(uuid())
   name            String?
-  email           String?          @unique(map: "User_email_key")
+  email           String?             @unique(map: "User_email_key")
   emailVerified   DateTime?
   image           String?
   password        String?
-  role            String           @default("MEMBRO")
-  active          Boolean          @default(true)
+  role            String              @default("MEMBRO")
+  active          Boolean             @default(true)
   phone           String?
   birthDate       DateTime?
   gender          String?
   city            String?
   neighborhood    String?
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
   latitude        Float?
   longitude       Float?
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
   accounts        account[]
-  ledCell         cell?            @relation("CurrentCellLeader")
+  ledCell         cell?               @relation("CurrentCellLeader")
   cellHistory     cellmembership[]
   presences       presence[]
   sessions        session[]
@@ -146,19 +146,17 @@ model verificationtoken {
 }
 
 model visitor {
-  id           String   @id @default(uuid())
+  id           String              @id @default(uuid())
   name         String
   phone        String?
-  email        String?
-  address      String?
   observations String?
-  createdAt    DateTime @default(now())
+  createdAt    DateTime            @default(now())
   invitedById  String?
   cellId       String?
-  
-  cell         cell?    @relation(fields: [cellId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "Visitor_cellId_fkey")
-  invitedBy    user?    @relation("VisitorInviter", fields: [invitedById], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "Visitor_invitedById_fkey")
-  
+  address      String?
+  email        String?
+  cell         cell?               @relation(fields: [cellId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "Visitor_cellId_fkey")
+  invitedBy    user?               @relation("VisitorInviter", fields: [invitedById], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "Visitor_invitedById_fkey")
   attendances  visitorattendance[]
 
   @@index([cellId], map: "Visitor_cellId_fkey")
@@ -166,14 +164,13 @@ model visitor {
 }
 
 model visitorattendance {
-  id           String  @id @default(uuid())
-  visitorId    String
-  meetingId    String
-  broughtById  String? 
-  
-  visitor      visitor @relation(fields: [visitorId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "VisitorAttendance_visitorId_fkey")
-  meeting      meeting @relation(fields: [meetingId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "VisitorAttendance_meetingId_fkey")
-  broughtBy    user?   @relation("VisitorMeetingBringer", fields: [broughtById], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "VisitorAttendance_broughtById_fkey")
+  id          String  @id @default(uuid())
+  visitorId   String
+  meetingId   String
+  broughtById String?
+  broughtBy   user?   @relation("VisitorMeetingBringer", fields: [broughtById], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "VisitorAttendance_broughtById_fkey")
+  meeting     meeting @relation(fields: [meetingId], references: [id], onUpdate: NoAction, map: "VisitorAttendance_meetingId_fkey")
+  visitor     visitor @relation(fields: [visitorId], references: [id], onUpdate: NoAction, map: "VisitorAttendance_visitorId_fkey")
 
   @@unique([visitorId, meetingId], map: "VisitorAttendance_visitorId_meetingId_key")
   @@index([meetingId], map: "VisitorAttendance_meetingId_fkey")
@@ -187,7 +184,7 @@ model lesson {
   fileUrl   String
   fileName  String?
   active    Boolean  @default(false)
-  isNext    Boolean  @default(false)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  isNext    Boolean  @default(false)
 }

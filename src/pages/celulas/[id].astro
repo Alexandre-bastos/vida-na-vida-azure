@@ -68,7 +68,7 @@ if (!canViewCell) {
 const availableUsers = await prisma.user.findMany({
   where: {
     role: { not: 'ADMIN' },
-    memberships: cell.kind === 'REGULAR' 
+    cellHistory: cell.kind === 'REGULAR' 
       ? { none: { endDate: null, cell: { kind: 'REGULAR' } } }
       : { none: { endDate: null, cellId: id } }
   },
