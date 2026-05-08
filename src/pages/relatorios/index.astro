@@ -117,17 +117,17 @@ const cellsWithLeaders = await prisma.cell.findMany({
 });
 
 // Bairros
-const cellNeighborhoods = await prisma.cell.groupBy({
+const cellNeighborhoods = (await prisma.cell.groupBy({
   by: ['neighborhood'],
   where: cellFilter,
   _count: true
-});
+})).sort((a, b) => b._count - a._count);
 
-const memberNeighborhoods = await prisma.user.groupBy({
+const memberNeighborhoods = (await prisma.user.groupBy({
   by: ['neighborhood'],
   where: { active: true, ...cellMembershipFilter },
   _count: true
-});
+})).sort((a, b) => b._count - a._count);
 ---
 
 <ReportLayout title="Board Geral" activeTab="geral">
