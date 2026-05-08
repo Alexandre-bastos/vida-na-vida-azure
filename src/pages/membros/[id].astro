@@ -3,6 +3,7 @@ import AppLayout from '../../layouts/AppLayout.astro';
 import { ChevronLeft, Save, User, Mail, Phone, Shield, Calendar, Trash2, Key } from 'lucide-react';
 import prisma from '../../lib/prisma';
 import bcrypt from 'bcryptjs';
+import { getCoordinatesForNeighborhood } from '../../lib/geo';
 
 const user = Astro.locals.user;
 if (!user) return Astro.redirect('/login');
@@ -69,6 +70,13 @@ if (Astro.request.method === 'POST') {
           neighborhood,
           active,
         };
+
+        // Se o bairro mudou, buscamos novas coordenadas para o mapa
+        if (neighborhood !== member.neighborhood) {
+          const coords = await getCoordinatesForNeighborhood(neighborhood);
+          updateData.latitude = coords?.lat || null;
+          updateData.longitude = coords?.lng || null;
+        }
 
         // Só atualiza a senha se ela foi preenchida
         if (password && password.trim() !== '') {

@@ -2,6 +2,7 @@
 import AppLayout from '../../layouts/AppLayout.astro';
 import { ChevronLeft, Edit2, Users, MapPin, Calendar as CalendarIcon, Clock, Plus, Trash2, UserPlus, Shield, AlertTriangle } from 'lucide-react';
 import prisma from '../../lib/prisma';
+import { getCoordinatesForCell } from '../../lib/geo';
 
 const user = Astro.locals.user;
 if (!user) return Astro.redirect('/login');
@@ -154,6 +155,14 @@ if (Astro.request.method === 'POST') {
         if (name) {
             // Se o endereço ou bairro mudou, resetamos a geolocalização para forçar nova busca
             const hasChangedAddress = address !== cell.address || neighborhood !== cell.neighborhood;
+            let latitude = cell.latitude;
+            let longitude = cell.longitude;
+
+            if (hasChangedAddress) {
+                const coords = await getCoordinatesForCell(address || null, neighborhood || null);
+                latitude = coords?.lat || null;
+                longitude = coords?.lng || null;
+            }
             
             await prisma.cell.update({
                 where: { id },
@@ -164,7 +173,8 @@ if (Astro.request.method === 'POST') {
                     dayOfWeek: dayOfWeek ? parseInt(dayOfWeek) : null,
                     time,
                     kind: kind as any,
-                    ...(hasChangedAddress ? { latitude: null, longitude: null } : {})
+                    latitude,
+                    longitude
                 }
             });
             return Astro.redirect(`/celulas/${id}`);
