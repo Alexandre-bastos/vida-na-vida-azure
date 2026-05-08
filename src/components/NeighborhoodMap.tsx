@@ -3,18 +3,20 @@ import { MapContainer, TileLayer, Marker, Popup, CircleMarker, useMap } from 're
 import L from 'leaflet';
 import { Maximize2, Minimize2, Map as MapIcon, X } from 'lucide-react';
 
-// Fix for default marker icons in Leaflet + React
-import icon from 'leaflet/dist/images/marker-icon.png';
-import iconShadow from 'leaflet/dist/images/marker-shadow.png';
-
-let DefaultIcon = L.icon({
-    iconUrl: icon,
-    shadowUrl: iconShadow,
-    iconSize: [25, 41],
-    iconAnchor: [12, 41]
+// Custom SVG Icon for Cells
+const CellIcon = L.divIcon({
+    html: `
+        <div style="filter: drop-shadow(0 4px 6px rgba(0,0,0,0.1));">
+            <svg width="36" height="36" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M21 10C21 17 12 23 12 23C12 23 3 17 3 10C3 5.02944 7.02944 1 12 1C16.9706 1 21 5.02944 21 10Z" fill="#5270ac" stroke="white" stroke-width="1.5"/>
+                <circle cx="12" cy="10" r="3" fill="white"/>
+            </svg>
+        </div>
+    `,
+    className: '',
+    iconSize: [36, 36],
+    iconAnchor: [18, 36]
 });
-
-L.Marker.prototype.options.icon = DefaultIcon;
 
 interface CellPoint {
   id: string;
@@ -79,7 +81,7 @@ const NeighborhoodMap: React.FC<Props> = ({ cells, members }) => {
         
         {/* Marcadores de Células */}
         {cells.map(cell => (
-          <Marker key={cell.id} position={[cell.latitude, cell.longitude]}>
+          <Marker key={cell.id} position={[cell.latitude, cell.longitude]} icon={CellIcon}>
             <Popup>
               <div className="p-1">
                 <h4 className="font-bold text-brand-dark m-0">{cell.name}</h4>
@@ -96,10 +98,10 @@ const NeighborhoodMap: React.FC<Props> = ({ cells, members }) => {
             key={`member-${i}`}
             center={[m.latitude, m.longitude]}
             pathOptions={{ 
-              fillColor: '#2563eb', 
-              color: '#1d4ed8', 
+              fillColor: '#f59e0b', 
+              color: '#d97706', 
               weight: 1, 
-              fillOpacity: 0.2 + (Math.min(m.count, 10) * 0.05) 
+              fillOpacity: 0.3 + (Math.min(m.count, 10) * 0.05) 
             }}
             radius={15 + (Math.min(m.count, 20) * 2)}
           >
@@ -123,10 +125,16 @@ const NeighborhoodMap: React.FC<Props> = ({ cells, members }) => {
       </button>
 
       {!isExpanded && (
-        <div className="absolute bottom-4 left-4 z-[1000] bg-white/90 backdrop-blur px-3 py-1.5 rounded-lg border border-white/20 shadow-sm pointer-events-none">
-          <div className="flex items-center gap-2 text-[10px] font-bold text-gray-600">
-            <div className="w-2 h-2 rounded-full bg-brand-primary animate-pulse"></div>
-            <span>MAPA ESTRATÉGICO</span>
+        <div className="absolute bottom-4 left-4 z-[1000] bg-white/90 backdrop-blur px-3 py-2 rounded-xl border border-white/20 shadow-sm pointer-events-none">
+          <div className="space-y-1.5">
+            <div className="flex items-center gap-2 text-[9px] font-bold text-gray-600">
+              <div className="w-2.5 h-2.5 rounded-full bg-brand-primary border border-white"></div>
+              <span>PINS: UNIDADES (CÉLULAS)</span>
+            </div>
+            <div className="flex items-center gap-2 text-[9px] font-bold text-gray-600">
+              <div className="w-2.5 h-2.5 rounded-full bg-amber-500 border border-white"></div>
+              <span>CÍRCULOS: DENSIDADE DE MEMBROS</span>
+            </div>
           </div>
         </div>
       )}
