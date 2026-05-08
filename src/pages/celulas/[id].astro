@@ -1,6 +1,6 @@
 ---
 import AppLayout from '../../layouts/AppLayout.astro';
-import { ChevronLeft, Edit2, Users, MapPin, Calendar as CalendarIcon, Clock, Plus, Trash2, UserPlus, Shield } from 'lucide-react';
+import { ChevronLeft, Edit2, Users, MapPin, Calendar as CalendarIcon, Clock, Plus, Trash2, UserPlus, Shield, AlertTriangle } from 'lucide-react';
 import prisma from '../../lib/prisma';
 
 const user = Astro.locals.user;
@@ -152,6 +152,9 @@ if (Astro.request.method === 'POST') {
         const kind = formData.get('kind')?.toString();
 
         if (name) {
+            // Se o endereço ou bairro mudou, resetamos a geolocalização para forçar nova busca
+            const hasChangedAddress = address !== cell.address || neighborhood !== cell.neighborhood;
+            
             await prisma.cell.update({
                 where: { id },
                 data: {
@@ -160,10 +163,34 @@ if (Astro.request.method === 'POST') {
                     neighborhood: neighborhood || null,
                     dayOfWeek: dayOfWeek ? parseInt(dayOfWeek) : null,
                     time,
-                    kind: kind as any
+                    kind: kind as any,
+                    ...(hasChangedAddress ? { latitude: null, longitude: null } : {})
                 }
             });
             return Astro.redirect(`/celulas/${id}`);
+        }
+    }
+
+    if (action === 'delete_cell') {
+        if (!(isAdmin || isCoordinator)) {
+            return Astro.redirect(`/celulas/${id}`);
+        }
+
+        // Verificar se há presenças registradas em reuniões desta célula
+        const meetingsWithPresences = await prisma.meeting.count({
+            where: { 
+                cellId: id,
+                presences: { some: { isPresent: true } }
+            }
+        });
+
+        if (meetingsWithPresences > 0) {
+            // Se houver presenças, impedimos a exclusão física para preservar o histórico
+            message = 'Não é possível excluir fisicamente uma célula com histórico de presenças.';
+        } else {
+            // Exclusão física (Cascade delete tratará membros e reuniões sem presenças)
+            await prisma.cell.delete({ where: { id } });
+            return Astro.redirect('/celulas');
         }
     }
 }
@@ -182,11 +209,23 @@ if (Astro.request.method === 'POST') {
 				</div>
 			</div>
 			{(isAdmin || isCoordinator) && (
-				<button id="edit-cell-btn" class="w-10 h-10 rounded-xl bg-white shadow-sm border border-gray-100 flex items-center justify-center text-gray-400 hover:text-brand-primary transition-colors">
-					<Edit2 size={18} />
-				</button>
+                <div class="flex items-center gap-2">
+                    <button id="delete-cell-btn" class="w-10 h-10 rounded-xl bg-white shadow-sm border border-gray-100 flex items-center justify-center text-gray-300 hover:text-red-500 transition-colors">
+                        <Trash2 size={18} />
+                    </button>
+                    <button id="edit-cell-btn" class="w-10 h-10 rounded-xl bg-white shadow-sm border border-gray-100 flex items-center justify-center text-gray-400 hover:text-brand-primary transition-colors">
+                        <Edit2 size={18} />
+                    </button>
+                </div>
 			)}
 		</header>
+
+        {message && (
+            <div class="bg-red-50 border border-red-100 text-red-600 p-4 rounded-2xl text-xs font-bold flex items-center gap-2">
+                <AlertTriangle size={16} />
+                {message}
+            </div>
+        )}
 
 		{/* Informações da Célula */}
 		<section class="bg-white p-6 rounded-[2.5rem] shadow-sm border border-gray-100 space-y-4">
@@ -432,6 +471,27 @@ if (Astro.request.method === 'POST') {
 				</form>
 			</div>
 		</dialog>
+
+        <!-- Modal de Confirmar Exclusão -->
+        <dialog id="modal-delete-cell" class="overflow-hidden w-full max-w-sm">
+            <div class="p-8 space-y-6">
+                <div class="text-center">
+                    <div class="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center text-red-500 mx-auto mb-4">
+                        <AlertTriangle size={32} />
+                    </div>
+                    <h3 class="text-lg font-bold text-brand-dark">Excluir Célula?</h3>
+                    <p class="text-xs text-gray-400 mt-1">Esta ação é permanente e removerá todos os vínculos desta célula.</p>
+                </div>
+
+                <form method="POST" class="space-y-4">
+                    <input type="hidden" name="action" value="delete_cell" />
+                    <div class="flex gap-3 pt-4">
+                        <button type="button" id="close-delete-modal" class="flex-1 px-4 py-4 rounded-2xl border border-gray-100 font-bold text-gray-400 text-sm hover:bg-gray-50 transition-all">Cancelar</button>
+                        <button type="submit" class="flex-1 px-4 py-4 rounded-2xl bg-red-500 text-white font-bold text-sm hover:bg-red-600 shadow-lg shadow-red-500/20 transition-all">Excluir</button>
+                    </div>
+                </form>
+            </div>
+        </dialog>
 	</div>
 </AppLayout>
 
@@ -447,9 +507,16 @@ if (Astro.request.method === 'POST') {
 	const editModal = document.getElementById('modal-edit-cell') as HTMLDialogElement;
 
 	editBtn?.addEventListener('click', () => editModal?.showModal());
+
+    const deleteBtn = document.getElementById('delete-cell-btn');
+    const deleteModal = document.getElementById('modal-delete-cell') as HTMLDialogElement;
+    const closeDeleteBtn = document.getElementById('close-delete-modal');
+
+    deleteBtn?.addEventListener('click', () => deleteModal?.showModal());
+    closeDeleteBtn?.addEventListener('click', () => deleteModal?.close());
 	
 	// Fechar ao clicar fora
-	[modal, editModal].forEach(m => {
+	[modal, editModal, deleteModal].forEach(m => {
 		m?.addEventListener('click', (e) => {
 			if (e.target === m) m.close();
 		});

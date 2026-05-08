@@ -54,7 +54,7 @@ model cellmembership {
   roleAtTime String    @default("MEMBRO")
   userId     String
   cellId     String
-  cell       cell      @relation(fields: [cellId], references: [id], onUpdate: NoAction, map: "CellMembership_cellId_fkey")
+  cell       cell      @relation(fields: [cellId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "CellMembership_cellId_fkey")
   user       user      @relation(fields: [userId], references: [id], onUpdate: NoAction, map: "CellMembership_userId_fkey")
 
   @@index([cellId], map: "CellMembership_cellId_fkey")
@@ -155,7 +155,7 @@ model visitor {
   cellId       String?
   address      String?
   email        String?
-  cell         cell?               @relation(fields: [cellId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "Visitor_cellId_fkey")
+  cell         cell?               @relation(fields: [cellId], references: [id], onDelete: SetNull, onUpdate: NoAction, map: "Visitor_cellId_fkey")
   invitedBy    user?               @relation("VisitorInviter", fields: [invitedById], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "Visitor_invitedById_fkey")
   attendances  visitorattendance[]
 

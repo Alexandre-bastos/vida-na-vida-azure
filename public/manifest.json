@@ -2,9 +2,11 @@
   "name": "Vida na Vida - Gestão de Células",
   "short_name": "Vida na Vida",
   "description": "Sistema de Gestão de Células da Comunidade Cristã Vida na Vida",
-  "start_url": "/",
+  "id": "/?source=pwa",
+  "start_url": "/?source=pwa",
+  "scope": "/",
   "display": "standalone",
-  "background_color": "#f5f7fa",
+  "background_color": "#ffffff",
   "theme_color": "#5270ac",
   "orientation": "portrait",
   "icons": [
@@ -19,6 +21,19 @@
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
+    }
+  ],
+  "categories": ["business", "social"],
+  "shortcuts": [
+    {
+      "name": "Células",
+      "url": "/celulas",
+      "icons": [{ "src": "/images/logo.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Membros",
+      "url": "/membros",
+      "icons": [{ "src": "/images/logo.png", "sizes": "192x192" }]
     }
   ]
 }
