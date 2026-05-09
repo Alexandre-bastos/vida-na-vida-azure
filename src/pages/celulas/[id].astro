@@ -112,8 +112,8 @@ if (Astro.request.method === 'POST') {
 
                 if (isAdmin || isCoordinator) {
                     canRemove = true;
-                } else if (userRole === 'LIDER') {
-                    // Lider só pode excluir MEMBRO e LIDER_TREINAMENTO
+                } else if (isCellLeader || userRole === 'LIDER') {
+                    // Lider da célula ou papel LIDER pode excluir MEMBRO e LIDER_TREINAMENTO
                     canRemove = targetRole === 'MEMBRO' || targetRole === 'LIDER_TREINAMENTO';
                 } else if (userRole === 'LIDER_TREINAMENTO') {
                     // Lider em treinamento só pode excluir MEMBRO
@@ -218,11 +218,13 @@ if (Astro.request.method === 'POST') {
 					<p class="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Detalhes da Unidade</p>
 				</div>
 			</div>
-			{(isAdmin || isCoordinator) && (
+			{(isAdmin || isCoordinator || isCellLeader) && (
                 <div class="flex items-center gap-2">
-                    <button id="delete-cell-btn" class="w-10 h-10 rounded-xl bg-white shadow-sm border border-gray-100 flex items-center justify-center text-gray-300 hover:text-red-500 transition-colors">
-                        <Trash2 size={18} />
-                    </button>
+                    {(isAdmin || isCoordinator) && (
+                        <button id="delete-cell-btn" class="w-10 h-10 rounded-xl bg-white shadow-sm border border-gray-100 flex items-center justify-center text-gray-300 hover:text-red-500 transition-colors">
+                            <Trash2 size={18} />
+                        </button>
+                    )}
                     <button id="edit-cell-btn" class="w-10 h-10 rounded-xl bg-white shadow-sm border border-gray-100 flex items-center justify-center text-gray-400 hover:text-brand-primary transition-colors">
                         <Edit2 size={18} />
                     </button>
@@ -350,10 +352,10 @@ if (Astro.request.method === 'POST') {
 							</div>
 							
 							{canManageCell && (
-								<form method="POST" class="sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+								<form method="POST">
 									<input type="hidden" name="action" value="remove_member" />
 									<input type="hidden" name="membershipId" value={membership.id} />
-									<button type="submit" class="text-red-400 text-xs font-bold hover:text-red-600 transition-colors">Remover</button>
+									<button type="submit" class="text-red-400 text-xs font-bold hover:text-red-600 transition-colors bg-red-50 sm:bg-transparent px-3 py-1.5 sm:p-0 rounded-lg">Remover</button>
 								</form>
 							)}
 						</div>

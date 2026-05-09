@@ -95,14 +95,18 @@ const roleColors: Record<string, string> = {
 			<Search class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
 			<input 
 				type="text" 
+				id="member-search"
 				placeholder="Buscar membro por nome..." 
 				class="w-full pl-12 pr-4 py-4 rounded-2xl border border-gray-100 bg-white shadow-sm focus:outline-none focus:ring-4 focus:ring-brand-primary/5 focus:border-brand-primary transition-all text-sm"
 			/>
 		</div>
 
-		<div class="grid gap-3">
+		<div class="grid gap-3" id="members-list">
 			{users.map((user) => (
-			<div class={`bg-white p-4 rounded-3xl shadow-sm border border-gray-100 flex items-center justify-between hover:border-brand-light transition-all group ${!user.active ? 'opacity-50' : ''}`}>
+			<div 
+				data-name={user.name?.toLowerCase()}
+				class={`member-item bg-white p-4 rounded-3xl shadow-sm border border-gray-100 flex items-center justify-between hover:border-brand-light transition-all group ${!user.active ? 'opacity-50' : ''}`}
+			>
 					<div class="flex items-center gap-4">
 						<div class="w-12 h-12 rounded-2xl bg-brand-bg flex items-center justify-center text-brand-primary overflow-hidden border border-gray-50 shadow-inner">
 							{user.image ? (
@@ -141,4 +145,22 @@ const roleColors: Record<string, string> = {
 		</div>
 	</div>
 </AppLayout>
+
+<script>
+	const searchInput = document.getElementById('member-search') as HTMLInputElement;
+	const memberItems = document.querySelectorAll('.member-item');
+
+	searchInput?.addEventListener('input', (e) => {
+		const term = (e.target as HTMLInputElement).value.toLowerCase().trim();
+		
+		memberItems.forEach(item => {
+			const name = (item as HTMLElement).dataset.name || '';
+			if (name.includes(term)) {
+				(item as HTMLElement).style.display = 'flex';
+			} else {
+				(item as HTMLElement).style.display = 'none';
+			}
+		});
+	});
+</script>
 
