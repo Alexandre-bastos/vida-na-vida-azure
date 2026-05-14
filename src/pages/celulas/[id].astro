@@ -12,7 +12,7 @@ const { id } = Astro.params;
 // Buscar dados da célula e membros atuais
 // Construir filtro de acesso similar ao da lista de células
 const userId = (user as any)?.id;
-const userRole = (user as any)?.role || 'MEMBRO';
+const userRole = ((user as any)?.role || 'MEMBRO').toUpperCase();
 const isAdmin = userRole === 'ADMIN';
 const isCoordinator = userRole === 'COORDENADOR';
 const isLeader = userRole === 'LIDER' || userRole === 'LIDER_TREINAMENTO';
@@ -54,7 +54,7 @@ const isCellLeader = !!cell.leader && userId === cell.leader.id;
 const isTrainingLeader = userRole === 'LIDER_TREINAMENTO';
 const isMember = cell.memberships.some(m => m.user.id === userId);
 // Permissão para gerenciar (admin, líder, líder treinamento)
-const canManageCell = isAdmin || isCellLeader || isTrainingLeader;
+const canManageCell = isAdmin || isCellLeader || (isLeader && cell.kind !== 'ESPECIAL');
 // Permissão para visualizar a célula
 const canViewCell = isAdmin || isCoordinator || isCellLeader || isTrainingLeader || isMember;
 

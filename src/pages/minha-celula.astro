@@ -7,10 +7,10 @@ const user = Astro.locals.user;
 if (!user) return Astro.redirect('/login');
 
 const userId = user?.id;
-const userRole = user?.role;
+const userRole = (user?.role || 'MEMBRO').toUpperCase();
 
-if (!userRole) {
-  return new Response(null, { status: 302, headers: { location: '/login' } });
+if (userRole === 'MEMBRO') {
+  return Astro.redirect('/');
 }
 
 if (!['LIDER', 'LIDER_TREINAMENTO', 'MEMBRO'].includes(userRole)) {
@@ -21,7 +21,10 @@ const cells = await prisma.cell.findMany({
   where: {
     OR: [
       { leaderId: userId },
-      { memberships: { some: { userId, endDate: null } } }
+      { 
+        memberships: { some: { userId, endDate: null } },
+        kind: userRole === 'LIDER_TREINAMENTO' ? { not: 'ESPECIAL' } : undefined
+      }
     ]
   },
   include: { leader: true }

@@ -20,7 +20,10 @@ const myCells = await prisma.cell.findMany({
   where: {
     OR: [
       { leaderId: userId },
-      { memberships: { some: { userId, endDate: null } } }
+      { 
+        memberships: { some: { userId, endDate: null } },
+        kind: userRole === 'LIDER_TREINAMENTO' ? { not: 'ESPECIAL' } : undefined
+      }
     ]
   },
   select: { id: true }

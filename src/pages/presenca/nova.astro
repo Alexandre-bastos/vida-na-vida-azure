@@ -11,7 +11,7 @@ if (!user) {
 }
 
 const userId = (user as any)?.id;
-const userRole = (user as any)?.role || 'MEMBRO';
+const userRole = ((user as any)?.role || 'MEMBRO').toUpperCase();
 const isAdmin = userRole === 'ADMIN';
 const isCoordinator = userRole === 'COORDENADOR';
 const isLeader = userRole === 'LIDER' || userRole === 'LIDER_TREINAMENTO';
@@ -27,7 +27,26 @@ let availableCells = [];
 if (isAdmin || isCoordinator) {
   availableCells = await prisma.cell.findMany({ orderBy: { name: 'asc' } });
 } else if (isLeader) {
-  availableCells = await prisma.cell.findMany({ where: { leaderId: userId }, orderBy: { name: 'asc' } });
+  // Busca células onde é líder direto
+  const cellsAsLeader = await prisma.cell.findMany({
+    where: { leaderId: userId },
+    orderBy: { name: 'asc' }
+  });
+
+  // Busca células onde é membro (LT), excluindo as especiais
+  const cellsAsLT = await prisma.cell.findMany({
+    where: {
+      kind: { not: 'ESPECIAL' },
+      memberships: { some: { userId, endDate: null } }
+    },
+    orderBy: { name: 'asc' }
+  });
+
+  // União e deduplicação
+  const combined = [...cellsAsLeader, ...cellsAsLT];
+  const uniqueMap = new Map();
+  combined.forEach(c => uniqueMap.set(c.id, c));
+  availableCells = Array.from(uniqueMap.values()).sort((a, b) => a.name.localeCompare(b.name));
 }
 
 // Default selected cell
@@ -85,7 +104,18 @@ if (Astro.request.method === 'POST') {
   let existingMeetingId = formData.get('meetingId')?.toString() || null;
 
   // Permission check
-  if (!(isAdmin || isCoordinator || (isLeader && (await prisma.cell.findFirst({ where: { id: cellId, leaderId: userId } }))))) {
+  if (!(isAdmin || isCoordinator || (isLeader && (await prisma.cell.findFirst({ 
+    where: { 
+      id: cellId, 
+      OR: [
+        { leaderId: userId }, // Líder direto
+        { 
+          memberships: { some: { userId, endDate: null } }, // LT em célula regular
+          kind: { not: 'ESPECIAL' }
+        }
+      ]
+    } 
+  }))))) {
     return Astro.redirect('/presenca');
   }
 
