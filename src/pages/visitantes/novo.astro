@@ -51,7 +51,27 @@ if (Astro.request.method === 'POST') {
 }
 
 // Buscar células e membros para os selects
-const cells = await prisma.cell.findMany({ orderBy: { name: 'asc' } });
+let cells = [];
+if (isAdmin || isCoordinator) {
+  cells = await prisma.cell.findMany({ orderBy: { name: 'asc' } });
+} else if (isLider) {
+  // Lógica Union para Líder e LT
+  const cellsAsLeader = await prisma.cell.findMany({ where: { leaderId: userId } });
+  const cellsAsLT = await prisma.cell.findMany({
+    where: {
+      kind: { not: 'ESPECIAL' },
+      memberships: { some: { userId, endDate: null } }
+    }
+  });
+  const combined = [...cellsAsLeader, ...cellsAsLT];
+  const uniqueMap = new Map();
+  combined.forEach(c => uniqueMap.set(c.id, c));
+  cells = Array.from(uniqueMap.values()).sort((a: any, b: any) => a.name.localeCompare(b.name));
+}
+
+// Célula padrão para Líder/LT
+const defaultCellId = (isLider && cells.length > 0) ? cells[0].id : null;
+
 const members = await prisma.user.findMany({ 
   where: { active: true },
   orderBy: { name: 'asc' },
@@ -168,7 +188,7 @@ const members = await prisma.user.findMany({
 						>
 							<option value="">Apenas Igreja</option>
 							{cells.map(c => (
-								<option value={c.id}>{c.name}</option>
+								<option value={c.id} selected={defaultCellId === c.id}>{c.name}</option>
 							))}
 						</select>
 					</div>

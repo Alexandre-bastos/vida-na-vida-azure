@@ -75,8 +75,11 @@ if (qMeetingId) {
   }
 }
 
-// Get all visitors for the selection
-const allVisitors = await prisma.visitor.findMany({ orderBy: { name: 'asc' } });
+// Get all visitors for the selection (filtered by cell if selected)
+const allVisitors = await prisma.visitor.findMany({ 
+  where: selectedCellId ? { cellId: selectedCellId } : {},
+  orderBy: { name: 'asc' } 
+});
 // Map of visitors already in this meeting
 const meetingVisitorsMap = new Map();
 if (meeting && (meeting as any).visitorPresences) {

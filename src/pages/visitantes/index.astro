@@ -13,9 +13,28 @@ const isAdmin = userRole === 'ADMIN';
 const isCoordinator = userRole === 'COORDENADOR';
 const isLider = userRole.startsWith('LIDER');
 
+// Buscar IDs das células que o usuário lidera ou faz parte
+let myCellIds = [];
+if (isLider && !isAdmin && !isCoordinator) {
+    const cellsAsLeader = await prisma.cell.findMany({ where: { leaderId: (user as any).id }, select: { id: true } });
+    const cellsAsLT = await prisma.cell.findMany({
+        where: {
+            kind: { not: 'ESPECIAL' },
+            memberships: { some: { userId: (user as any).id, endDate: null } }
+        },
+        select: { id: true }
+    });
+    myCellIds = [...new Set([...cellsAsLeader.map(c => c.id), ...cellsAsLT.map(c => c.id)])];
+}
+
 // Buscar visitantes
-// Por enquanto buscamos todos, no futuro podemos filtrar por célula se o líder só puder ver os dele
+const whereClause: any = {};
+if (isLider && !isAdmin && !isCoordinator) {
+    whereClause.cellId = { in: myCellIds };
+}
+
 const visitors = await prisma.visitor.findMany({
+  where: whereClause,
   include: {
     invitedBy: true,
     cell: true
