@@ -161,7 +161,17 @@ if (user) return Astro.redirect('/');
           const result = await response.json();
 
           if (response.ok && result.success) {
-            window.location.href = '/';
+            // Ponte com o aplicativo móvel (WebView)
+            if (window.isMobileApp && window.ReactNativeWebView) {
+              window.ReactNativeWebView.postMessage(JSON.stringify({
+                type: 'USER_LOGGED_IN'
+              }));
+              setTimeout(() => {
+                window.location.href = '/';
+              }, 150);
+            } else {
+              window.location.href = '/';
+            }
           } else {
             showError('password', result.error || 'E-mail ou senha incorretos');
           }
