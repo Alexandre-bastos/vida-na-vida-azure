@@ -135,6 +135,7 @@ model user {
   sessions        session[]
   invitedVisitors visitor[]           @relation("VisitorInviter")
   visitorMeetings visitorattendance[] @relation("VisitorMeetingBringer")
+  pushTokens      pushtoken[]
 }
 
 model verificationtoken {
@@ -187,4 +188,14 @@ model lesson {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   isNext    Boolean  @default(false)
+}
+
+model pushtoken {
+  id        String   @id @default(uuid())
+  token     String   @unique(map: "PushToken_token_key")
+  userId    String
+  createdAt DateTime @default(now())
+  user      user     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }

@@ -4,6 +4,8 @@ import ReportLayout from '../../../layouts/ReportLayout.astro';
 import prisma from '../../../lib/prisma';
 import { uploadFile } from '../../../lib/storage';
 import { ChevronLeft, Megaphone, Camera } from 'lucide-react';
+import { getTargetTokens, sendPushNotifications } from '../../../lib/push-notifications';
+import type { PushTargetType } from '../../../lib/push-notifications';
 
 const user = Astro.locals.user;
 if (!user) return Astro.redirect('/login');
@@ -13,11 +15,24 @@ if (userRole !== 'ADMIN' && userRole !== 'COORDENADOR') {
   return Astro.redirect('/');
 }
 
+// Carregar células e membros ativos para os filtros de Push
+const cells = await prisma.cell.findMany({ orderBy: { name: 'asc' } });
+const members = await prisma.user.findMany({
+  where: { active: true },
+  orderBy: { name: 'asc', name: 'asc' },
+  select: { id: true, name: true }
+});
+
 if (Astro.request.method === 'POST') {
   const formData = await Astro.request.formData();
   const title = formData.get('title')?.toString();
   const content = formData.get('content')?.toString();
   const active = formData.get('active') === 'on';
+  const sendPush = formData.get('sendPush') === 'on';
+  const targetType = (formData.get('targetType')?.toString() || 'ALL') as PushTargetType;
+  const targetRole = formData.get('targetRole')?.toString();
+  const targetCell = formData.get('targetCell')?.toString();
+  const targetUser = formData.get('targetUser')?.toString();
 
   // Upload imagem via Vercel Blob
   const image = formData.get('image') as unknown as File;
@@ -32,9 +47,34 @@ if (Astro.request.method === 'POST') {
   }
 
   if (title && content) {
-    await prisma.notice.create({
+    // 1. Criar o aviso no banco de dados para a web
+    const notice = await prisma.notice.create({
       data: { title, content, imageUrl, active }
     });
+
+    // 2. Disparar notificações Push se ativado
+    if (sendPush) {
+      let targetValue: string | undefined = undefined;
+      if (targetType === 'ROLE') targetValue = targetRole;
+      else if (targetType === 'CELL') targetValue = targetCell;
+      else if (targetType === 'USER') targetValue = targetUser;
+
+      try {
+        const tokens = await getTargetTokens(targetType, targetValue);
+        if (tokens.length > 0) {
+          // Simplifica o texto no push se for muito longo
+          const pushBody = content.length > 120 ? `${content.substring(0, 120)}...` : content;
+          await sendPushNotifications(tokens, {
+            title: title,
+            body: pushBody,
+            data: { url: '/relatorios/avisos', noticeId: notice.id }
+          });
+        }
+      } catch (pushErr) {
+        console.error('[PUSH-DISPATCH] Falha crítica ao enviar notificações:', pushErr);
+      }
+    }
+
     return Astro.redirect('/relatorios/avisos');
   }
 }
@@ -96,68 +136,78 @@ if (Astro.request.method === 'POST') {
       </div>
     </div>
 
-    <script>
-      import { compressImage } from '../../../lib/image-compression';
-      
-      const imageInput = document.getElementById('image-input');
-      const fileNameDisplay = document.getElementById('file-name');
-      const imagePreviewContainer = document.getElementById('image-preview-container');
-      const imagePreview = document.getElementById('image-preview');
-      const imageLoading = document.getElementById('image-loading');
-      
-      imageInput?.addEventListener('change', async (e) => {
-        const target = e.target;
-        if (!target.files || target.files.length === 0) return;
+    <!-- Bloco de Notificação Push Premium -->
+    <div class="border border-gray-100 rounded-3xl p-6 bg-gray-50/50 space-y-4">
+      <div class="flex items-center gap-3">
+        <label class="relative inline-flex items-center cursor-pointer">
+          <input type="checkbox" name="sendPush" id="push-toggle" class="sr-only peer">
+          <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-brand-primary/20 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand-primary"></div>
+        </label>
+        <div>
+          <span class="text-sm font-bold text-gray-700 block">Enviar como Notificação Push no Celular</span>
+          <span class="text-[10px] text-gray-400 font-medium">Os aparelhos dos membros receberão um alerta em tempo real.</span>
+        </div>
+      </div>
 
-        const file = target.files[0];
-        
-        if (imagePreviewContainer && imagePreview && fileNameDisplay) {
-          imagePreviewContainer.classList.remove('hidden');
-          fileNameDisplay.innerText = "Alterar imagem";
-          if (imageLoading) imageLoading.classList.remove('hidden');
-          
-          const reader = new FileReader();
-          reader.onload = (re) => {
-            imagePreview.src = re.target.result;
-          };
-          reader.readAsDataURL(file);
-        }
-        
-        if (file.type.startsWith('image/')) {
-          try {
-            const compressedFile = await compressImage(file);
-            const dataTransfer = new DataTransfer();
-            dataTransfer.items.add(compressedFile);
-            target.files = dataTransfer.files;
-          } catch (err) {
-            console.error('Erro ao comprimir imagem:', err);
-          } finally {
-            if (imageLoading) imageLoading.classList.add('hidden');
-          }
-        } else {
-          if (imageLoading) imageLoading.classList.add('hidden');
-        }
-      });
+      <!-- Filtros de Audiência (Inicialmente oculto) -->
+      <div id="push-filters-container" class="hidden border-t border-gray-100/85 pt-4 space-y-4">
+        <div class="space-y-1.5">
+          <label class="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">Para quem deseja enviar?</label>
+          <select 
+            name="targetType" 
+            id="target-type-select" 
+            class="w-full px-5 py-4 rounded-2xl border border-gray-100 bg-white focus:outline-none focus:ring-4 focus:ring-brand-primary/5 transition-all text-sm font-medium appearance-none"
+          >
+            <option value="ALL">Todos os Membros (Geral)</option>
+            <option value="ROLE">Por Cargo de Liderança</option>
+            <option value="CELL">Para uma Célula Específica</option>
+            <option value="USER">Para um Membro Específico</option>
+          </select>
+        </div>
 
-      // Submit loading state
-      const form = document.querySelector('form');
-      const submitBtn = document.getElementById('submit-btn');
-      const submitText = document.getElementById('submit-text');
-      const submitIcon = document.getElementById('submit-icon');
+        <!-- Filtro: Cargo -->
+        <div id="filter-role-container" class="hidden space-y-1.5 animate-fadeIn">
+          <label class="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">Selecione o Cargo</label>
+          <select 
+            name="targetRole" 
+            class="w-full px-5 py-4 rounded-2xl border border-gray-100 bg-white focus:outline-none focus:ring-4 focus:ring-brand-primary/5 transition-all text-sm font-medium appearance-none"
+          >
+            <option value="COORDENADOR">Apenas Coordenadores</option>
+            <option value="LIDER">Apenas Líderes</option>
+            <option value="LIDER_TREINAMENTO">Apenas Líderes em Treinamento (LT)</option>
+            <option value="MEMBRO">Apenas Membros</option>
+          </select>
+        </div>
 
-      if (form) {
-        form.addEventListener('submit', () => {
-          if (submitBtn && submitText) {
-            submitBtn.style.pointerEvents = 'none';
-            submitBtn.style.opacity = '0.7';
-            submitText.innerText = 'Processando...';
-            if (submitIcon) {
-              submitIcon.innerHTML = '<div class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>';
-            }
-          }
-        });
-      }
-    </script>
+        <!-- Filtro: Célula -->
+        <div id="filter-cell-container" class="hidden space-y-1.5 animate-fadeIn">
+          <label class="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">Selecione a Célula</label>
+          <select 
+            name="targetCell" 
+            class="w-full px-5 py-4 rounded-2xl border border-gray-100 bg-white focus:outline-none focus:ring-4 focus:ring-brand-primary/5 transition-all text-sm font-medium appearance-none"
+          >
+            <option value="">-- Selecione uma Célula --</option>
+            {cells.map(c => (
+              <option value={c.id}>{c.name}</option>
+            ))}
+          </select>
+        </div>
+
+        <!-- Filtro: Membro Específico -->
+        <div id="filter-user-container" class="hidden space-y-1.5 animate-fadeIn">
+          <label class="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">Selecione o Membro</label>
+          <select 
+            name="targetUser" 
+            class="w-full px-5 py-4 rounded-2xl border border-gray-100 bg-white focus:outline-none focus:ring-4 focus:ring-brand-primary/5 transition-all text-sm font-medium appearance-none"
+          >
+            <option value="">-- Selecione um Membro --</option>
+            {members.map(m => (
+              <option value={m.id}>{m.name}</option>
+            ))}
+          </select>
+        </div>
+      </div>
+    </div>
 
     <div class="flex items-center gap-3 p-4 bg-gray-50 rounded-2xl">
       <label class="relative inline-flex items-center cursor-pointer">
@@ -177,3 +227,103 @@ if (Astro.request.method === 'POST') {
   </form>
 </ReportLayout>
 
+<script>
+  import { compressImage } from '../../../lib/image-compression';
+  
+  const imageInput = document.getElementById('image-input');
+  const fileNameDisplay = document.getElementById('file-name');
+  const imagePreviewContainer = document.getElementById('image-preview-container');
+  const imagePreview = document.getElementById('image-preview') as HTMLImageElement;
+  const imageLoading = document.getElementById('image-loading');
+  
+  imageInput?.addEventListener('change', async (e) => {
+    const target = e.target as HTMLInputElement;
+    if (!target.files || target.files.length === 0) return;
+
+    const file = target.files[0];
+    
+    if (imagePreviewContainer && imagePreview && fileNameDisplay) {
+      imagePreviewContainer.classList.remove('hidden');
+      fileNameDisplay.innerText = "Alterar imagem";
+      if (imageLoading) imageLoading.classList.remove('hidden');
+      
+      const reader = new FileReader();
+      reader.onload = (re) => {
+        if (re.target?.result) {
+          imagePreview.src = re.target.result as string;
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+    
+    if (file.type.startsWith('image/')) {
+      try {
+        const compressedFile = await compressImage(file);
+        const dataTransfer = new DataTransfer();
+        dataTransfer.items.add(compressedFile);
+        target.files = dataTransfer.files;
+      } catch (err) {
+        console.error('Erro ao comprimir imagem:', err);
+      } finally {
+        if (imageLoading) imageLoading.classList.add('hidden');
+      }
+    } else {
+      if (imageLoading) imageLoading.classList.add('hidden');
+    }
+  });
+
+  // Mostrar/Ocultar Filtros de Push dinamicamente
+  const pushToggle = document.getElementById('push-toggle') as HTMLInputElement;
+  const pushFiltersContainer = document.getElementById('push-filters-container');
+  const targetTypeSelect = document.getElementById('target-type-select') as HTMLSelectElement;
+  
+  const filterRoleContainer = document.getElementById('filter-role-container');
+  const filterCellContainer = document.getElementById('filter-cell-container');
+  const filterUserContainer = document.getElementById('filter-user-container');
+
+  pushToggle?.addEventListener('change', (e) => {
+    const isChecked = (e.target as HTMLInputElement).checked;
+    if (isChecked) {
+      pushFiltersContainer?.classList.remove('hidden');
+    } else {
+      pushFiltersContainer?.classList.add('hidden');
+    }
+  });
+
+  targetTypeSelect?.addEventListener('change', (e) => {
+    const value = (e.target as HTMLSelectElement).value;
+    
+    // Esconder todos os containers de filtros específicos
+    filterRoleContainer?.classList.add('hidden');
+    filterCellContainer?.classList.add('hidden');
+    filterUserContainer?.classList.add('hidden');
+
+    // Exibir o container correspondente
+    if (value === 'ROLE') {
+      filterRoleContainer?.classList.remove('hidden');
+    } else if (value === 'CELL') {
+      filterCellContainer?.classList.remove('hidden');
+    } else if (value === 'USER') {
+      filterUserContainer?.classList.remove('hidden');
+    }
+  });
+
+  // Submit loading state
+  const form = document.querySelector('form');
+  const submitBtn = document.getElementById('submit-btn');
+  const submitText = document.getElementById('submit-text');
+  const submitIcon = document.getElementById('submit-icon');
+
+  if (form) {
+    form.addEventListener('submit', () => {
+      if (submitBtn && submitText) {
+        submitBtn.style.pointerEvents = 'none';
+        submitBtn.style.opacity = '0.7';
+        submitText.innerText = 'Processando...';
+        if (submitIcon) {
+          submitIcon.innerHTML = '<div class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>';
+        }
+      }
+    });
+  }
+</script>

@@ -82,6 +82,55 @@ const { title } = Astro.props;
 				}
 			});
 
+			// Registro de tokens Push para aparelhos móveis
+			function registerMobilePushToken(token) {
+				if (!token) return;
+				
+				// Evita reenviar repetidamente se já foi enviado nesta navegação
+				if (window.__pushTokenRegistered === token) return;
+				
+				fetch('/api/auth/push-token', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({ token })
+				})
+				.then(res => res.json())
+				.then(data => {
+					if (data.success) {
+						window.__pushTokenRegistered = token;
+						console.log('[MOBILE-PUSH] Token registrado com sucesso no banco de dados!');
+					} else {
+						console.warn('[MOBILE-PUSH] Falha ao registrar token no servidor:', data.error);
+					}
+				})
+				.catch(err => {
+					console.error('[MOBILE-PUSH] Erro na requisição de registro de token:', err);
+				});
+			}
+
+			// Ouvir o evento disparado pela casca nativa React Native
+			document.addEventListener('mobile-ready', (e) => {
+				const token = e.detail?.pushToken;
+				if (token) {
+					console.log('[MOBILE-PUSH] Ouvido evento mobile-ready. Token:', token);
+					registerMobilePushToken(token);
+				}
+			});
+
+			// Caso o token já tenha sido injetado no escopo global (window) antes da carga desse script
+			function checkAndRegisterInjectedToken() {
+				if (window.mobilePushToken) {
+					console.log('[MOBILE-PUSH] Detectado token global já injetado:', window.mobilePushToken);
+					registerMobilePushToken(window.mobilePushToken);
+				}
+			}
+
+			if (document.readyState === 'complete' || document.readyState === 'interactive') {
+				checkAndRegisterInjectedToken();
+			} else {
+				window.addEventListener('DOMContentLoaded', checkAndRegisterInjectedToken);
+			}
+
 			// Register Service Worker for PWA
 			if ('serviceWorker' in navigator) {
 				window.addEventListener('load', () => {
